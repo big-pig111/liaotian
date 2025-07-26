@@ -305,6 +305,17 @@
                     </button>
                 </div>
             </header>
+            <!-- 合约地址展示区 -->
+            <div class="w-full flex justify-center bg-gray-900 border-b border-gray-800 py-2">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs md:text-sm text-gray-400 select-all font-mono" title="4Jqye61KnFjVh6d8BePf5DkAkUVxd2LxgVjXu7sFbonk" id="caDisplay">
+                        CA: <span class="truncate max-w-[180px] inline-block align-middle" style="vertical-align:middle;">4Jqye61KnFjVh6d8BePf5DkAkUVxd2LxgVjXu7sFbonk</span>
+                    </span>
+                    <button id="copyCA" class="text-bonk-orange hover:text-bonk-light text-xs px-2 py-1 rounded border border-bonk-orange bg-gray-800 transition-colors" title="复制合约地址">
+                        <i class="fa fa-copy"></i> 复制
+                    </button>
+                </div>
+            </div>
 
             <!-- 消息流区域 -->
             <div id="messageArea" class="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide relative" style="scroll-behavior: smooth;">
@@ -2889,6 +2900,13 @@
         window.addEventListener('scroll', updateScrollBtnPosition);
         setTimeout(updateScrollBtnPosition, 300);
 
+        // 在DOMContentLoaded或initializeApp后添加复制功能
+        document.getElementById('copyCA').addEventListener('click', function() {
+            const ca = '4Jqye61KnFjVh6d8BePf5DkAkUVxd2LxgVjXu7sFbonk';
+            navigator.clipboard.writeText(ca).then(() => {
+                showToast('合约地址已复制', 'success');
+            });
+        });
 
     </script>
     <script src="wallet-connect.js"></script>
