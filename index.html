@@ -1906,16 +1906,27 @@
                 // 检查是否为钱包用户
                 const walletAddress = window.getSolanaWalletAddress && window.getSolanaWalletAddress();
                 const isWalletUser = !!walletAddress;
+                
                 // 控制密码相关输入框显示
-                const passwordDiv = document.getElementById('passwordInput').closest('div');
-                const confirmPasswordDiv = document.getElementById('confirmPasswordInput').closest('div');
+                const passwordSection = document.getElementById('passwordInput').parentElement.parentElement;
+                const confirmPasswordSection = document.getElementById('confirmPasswordInput').parentElement.parentElement;
+                const passwordInput = document.getElementById('passwordInput');
+                const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+                
                 if (isWalletUser) {
-                    passwordDiv.style.display = 'none';
-                    confirmPasswordDiv.style.display = 'none';
+                    passwordSection.style.display = 'none';
+                    confirmPasswordSection.style.display = 'none';
+                    // 移除required属性，避免表单验证错误
+                    passwordInput.removeAttribute('required');
+                    confirmPasswordInput.removeAttribute('required');
                 } else {
-                    passwordDiv.style.display = '';
-                    confirmPasswordDiv.style.display = '';
+                    passwordSection.style.display = '';
+                    confirmPasswordSection.style.display = '';
+                    // 恢复required属性
+                    passwordInput.setAttribute('required', '');
+                    confirmPasswordInput.setAttribute('required', '');
                 }
+                
                 userRegisterModal.classList.remove('hidden');
                 setTimeout(() => {
                     userRegisterModalContent.classList.remove('scale-95', 'opacity-0');
@@ -1929,6 +1940,16 @@
                 userRegisterModalContent.classList.add('scale-95', 'opacity-0');
                 setTimeout(() => {
                     userRegisterModal.classList.add('hidden');
+                    // 重新显示密码字段，以便下次匿名用户注册时能看到
+                    const passwordSection = document.getElementById('passwordInput').parentElement.parentElement;
+                    const confirmPasswordSection = document.getElementById('confirmPasswordInput').parentElement.parentElement;
+                    const passwordInput = document.getElementById('passwordInput');
+                    const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+                    passwordSection.style.display = '';
+                    confirmPasswordSection.style.display = '';
+                    // 恢复required属性
+                    passwordInput.setAttribute('required', '');
+                    confirmPasswordInput.setAttribute('required', '');
                 }, 300);
             }
 
