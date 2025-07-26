@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https: wss:;">
+    <title>Bonk Chat - Solana's Favorite Meme Community</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, push, onValue, off, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA5Z5ieEbAcfQX0kxGSn9ldGXhzvAwx_8M",
+            authDomain: "chat-294cc.firebaseapp.com",
+            databaseURL: "https://chat-294cc-default-rtdb.firebaseio.com",
+            projectId: "chat-294cc",
+            storageBucket: "chat-294cc.firebasestorage.app",
+            messagingSenderId: "913615304269",
+            appId: "1:913615304269:web:0274ffaccb8e6b678e4e04",
+            measurementId: "G-SJR9NDW86B"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+        const storage = getStorage(app);
+
+        // Make Firebase available globally with all necessary functions
+        window.firebase = { 
+            auth, 
+            database, 
+            storage,
+            // Add the functions we need
+            ref, push, onValue, off, set, get, child,
+            signInAnonymously, onAuthStateChanged, signOut,
+            storageRef, uploadBytes, getDownloadURL
+        };
+    </script>
+    <script>
+        // 配置Tailwind自定义颜色和字体
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bonk: {
+                            orange: '#FF9500',
+                            light: '#FFB74D',
+                            dark: '#E65100'
+                        },
+                        solana: {
+                            blue: '#00FFA3',
+                            dark: '#00BFA5'
+                        },
+                        chat: {
+                            bg: '#1A1A1A',
+                            bubble: '#F5F5F5',
+                            bubbleSelf: '#FF9500',
+                            text: '#FFFFFF',
+                            textDark: '#333333'
+                        }
+                    },
+                    fontFamily: {
+                        nunito: ['Nunito', 'sans-serif'],
+                        comic: ['Comic Sans MS', 'cursive']
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-small': 'bounce 1s infinite',
+                        'wiggle': 'wiggle 1s ease-in-out infinite'
+                    },
+                    keyframes: {
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .text-shadow {
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            }
+            .message-appear {
+                animation: messageAppear 0.3s ease-out forwards;
+            }
+            @keyframes messageAppear {
+                from {
+                    transform: translateY(10px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            .bonk-highlight {
+                animation: bonkHighlight 1s ease-in-out;
+            }
+            @keyframes bonkHighlight {
+                0%, 100% { color: theme('colors.chat.text'); }
+                50% { color: theme('colors.bonk.orange'); }
+            }
+        }
+        
+        /* 全局样式 - 防止页面滚动 */
+        html, body {
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* 消息区域滚动样式 */
+        #messageArea {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+        }
+        
+        /* 确保侧边栏不滚动 */
+        #sidebar, #communityPanel {
+            overflow: hidden;
+        }
+        
+        /* 侧边栏内部滚动区域 */
+        #sidebar nav, #communityPanel > div:not(:last-child) {
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        #sidebar nav::-webkit-scrollbar, 
+        #communityPanel > div:not(:last-child)::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-chat-bg text-chat-text font-nunito h-screen flex flex-col overflow-hidden">
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 左侧导航栏 - 桌面端 -->
+        <aside id="sidebar" class="hidden md:flex flex-col w-60 bg-chat-bg border-r border-gray-700 z-20 transition-all duration-300 ease-in-out">
+            <!-- Bonk Logo和搜索 -->
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex items-center space-x-2 mb-4">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
+                        <img src="1.png" alt="Bonk Chat Logo" class="w-full h-full object-cover">
+                    </div>
+                    <h1 class="text-2xl font-bold font-comic text-white">Bonk<span class="text-bonk-orange">Chat</span></h1>
+                </div>
+                <div class="relative">
+                    <input type="text" placeholder="找好友/话题..." 
+                        class="w-full bg-gray-800 rounded-full py-2 px-4 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-bonk-orange">
+                    <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- 导航菜单 -->
+            <nav class="flex-1 overflow-y-auto p-2" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 p-3 rounded-lg bg-gray-800 text-white">
+                            <i class="fa fa-home text-xl w-6 text-center"></i>
+                            <span>首页</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors">
+                            <i class="fa fa-comments text-xl w-6 text-center"></i>
+                            <span>聊天列表</span>
+                            <span class="ml-auto bg-bonk-orange text-white text-xs px-2 py-1 rounded-full">5</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors">
+                            <i class="fa fa-fire text-xl w-6 text-center"></i>
+                            <span>社区话题</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors">
+                            <i class="fa fa-star text-xl w-6 text-center"></i>
+                            <span>收藏</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors">
+                            <i class="fa fa-bar-chart text-xl w-6 text-center"></i>
+                            <span>市场动态</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- 热门话题标签 -->
+                <div class="mt-6">
+                    <h3 class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">热门话题</h3>
+                    <div class="flex flex-wrap gap-2 p-3">
+                        <span class="bg-gray-800 text-white text-xs px-3 py-1 rounded-full">#Bonk暴涨</span>
+                        <span class="bg-gray-800 text-white text-xs px-3 py-1 rounded-full">#Solana</span>
+                        <span class="bg-gray-800 text-white text-xs px-3 py-1 rounded-full">#NFT</span>
+                        <span class="bg-gray-800 text-white text-xs px-3 py-1 rounded-full">#Meme</span>
+                        <span class="bg-gray-800 text-white text-xs px-3 py-1 rounded-full">#Web3</span>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- 底部 - 登录和钱包连接 -->
+            <div class="p-4 border-t border-gray-700 space-y-3">
+                <!-- 登录按钮 -->
+                <button id="loginBtn" class="w-full bg-gradient-to-r from-bonk-orange to-bonk-dark text-white rounded-lg py-2.5 px-4 font-medium transition-all duration-300 hover:shadow-lg hover:shadow-bonk-orange/25 flex items-center justify-center space-x-2">
+                    <i class="fa fa-sign-in"></i>
+                    <span>登录聊天</span>
+                </button>
+                
+                <!-- 钱包连接按钮 -->
+                <button id="connectWallet" class="w-full bg-transparent border-2 border-bonk-orange text-bonk-orange hover:bg-bonk-orange hover:text-white rounded-lg py-2.5 px-4 font-medium transition-colors flex items-center justify-center space-x-2">
+                    <i class="fa fa-wallet"></i>
+                    <span>连接钱包</span>
+                </button>
+                
+                                    <!-- 登录成功后显示 -->
+                    <div id="userProfile" class="hidden">
+                        <div class="flex items-center space-x-3 p-2 bg-gray-800 rounded-lg">
+                            <div class="w-10 h-10 rounded-full bg-solana-blue flex items-center justify-center overflow-hidden" id="userAvatarContainer">
+                                <i class="fa fa-user text-chat-text-dark font-bold" id="userAvatarIcon"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium" id="userName">Bonk用户</p>
+                                <p class="text-xs text-gray-400" id="userStatus">在线</p>
+                            </div>
+                            <button id="logoutBtn" class="text-gray-400 hover:text-red-400 transition-colors">
+                                <i class="fa fa-sign-out"></i>
+                            </button>
+                        </div>
+                    </div>
+                
+                <!-- 钱包连接成功后显示 -->
+                <div id="walletConnected" class="hidden">
+                    <div class="flex items-center space-x-3 p-2 bg-gray-800 rounded-lg">
+                        <div class="w-10 h-10 rounded-full bg-solana-blue flex items-center justify-center">
+                            <i class="fa fa-check text-chat-text-dark font-bold"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium">钱包已连接</p>
+                            <p class="text-xs text-gray-400">0x71C...f8D2</p>
+                        </div>
+                        <button id="disconnectWalletBtn" class="text-gray-400 hover:text-red-400 transition-colors">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中间聊天主区 -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+            <!-- 顶部聊天标题栏 -->
+            <header class="h-16 flex items-center justify-between p-4 border-b border-gray-700 bg-chat-bg">
+                <!-- 移动端菜单按钮 -->
+                <button id="mobileMenuBtn" class="md:hidden p-2 rounded-full hover:bg-gray-800">
+                    <i class="fa fa-bars text-xl"></i>
+                </button>
+                
+                <!-- 聊天标题 -->
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                        <img src="1.png" alt="Bonk真爱粉群" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h2 class="font-bold">Bonk真爱粉群</h2>
+                        <p class="text-xs text-gray-400 online-count">连接中...</p>
+                    </div>
+                </div>
+                
+                <!-- 右侧功能按钮 -->
+                <div class="flex items-center space-x-2">
+                    <button class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-phone text-gray-300"></i>
+                    </button>
+                    <button class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-cog text-gray-300"></i>
+                    </button>
+                    <button class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-ellipsis-v text-gray-300"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- 消息流区域 -->
+            <div id="messageArea" class="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide relative" style="scroll-behavior: smooth;">
+                <!-- 欢迎消息 -->
+                <div class="flex justify-center">
+                    <div class="bg-gray-800 text-gray-300 text-sm px-4 py-2 rounded-full">
+                        <i class="fa fa-rocket mr-2"></i>
+                        欢迎来到Bonk聊天室！🚀
+                </div>
+                    </div>
+                </div>
+
+            <!-- 滚动到底部按钮，移除absolute/fixed，由JS动态定位 -->
+            <button id="scrollToBottomBtn" style="z-index:9999;display:none;" class="bg-bonk-orange hover:bg-bonk-dark text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-300 opacity-0 pointer-events-none">
+                <i class="fa fa-chevron-down"></i>
+            </button>
+
+
+
+            <!-- 底部输入区 -->
+            <div class="p-4 border-t border-gray-700 bg-chat-bg">
+                <div class="flex items-end space-x-2">
+                    <!-- 表情按钮 -->
+                    <button id="emojiBtn" class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-smile-o text-xl text-gray-300"></i>
+                    </button>
+                    
+                    <!-- 图片按钮 -->
+                    <button id="imageUploadBtn" class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-image text-xl text-gray-300"></i>
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" class="hidden">
+                    
+                    <!-- NFT按钮 -->
+                    <button class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-diamond text-xl text-gray-300"></i>
+                    </button>
+                    
+                    <!-- 输入框 -->
+                    <div class="flex-1 relative">
+                        <textarea id="messageInput" placeholder="说点Bonk相关的..." 
+                            class="w-full bg-gray-800 rounded-full py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-bonk-orange resize-none"
+                            rows="1"></textarea>
+                    </div>
+                    
+                    <!-- 发送按钮 -->
+                    <button id="sendBtn" class="bg-bonk-orange hover:bg-bonk-dark text-white rounded-full w-11 h-11 flex items-center justify-center transition-colors">
+                        <i class="fa fa-paper-plane"></i>
+                    </button>
+                </div>
+                
+                <!-- 表情面板 - 默认隐藏 -->
+                <div id="emojiPanel" class="hidden mt-3 bg-gray-800 rounded-xl p-3 grid grid-cols-7 gap-2 max-h-48 overflow-y-auto scrollbar-hide">
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">😂</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🚀</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🐶</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">💎</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🚨</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🔥</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🦾</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">💰</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🤯</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🚀</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🙌</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🚀</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">🎉</button>
+                    <button class="emoji-btn p-2 hover:bg-gray-700 rounded-lg">Bonk!</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- 右侧社区信息栏 - 桌面端 -->
+        <aside id="communityPanel" class="hidden lg:flex flex-col w-72 bg-chat-bg border-l border-gray-700 z-10">
+            <!-- 群成员列表 -->
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold">群成员</h3>
+                    <span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded-full online-count">连接中...</span>
+                </div>
+                
+                <div class="relative">
+                    <input type="text" placeholder="搜索成员..." 
+                        class="w-full bg-gray-800 rounded-full py-2 px-4 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-bonk-orange">
+                    <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            
+            <!-- 成员列表 -->
+            <div class="flex-1 overflow-y-auto p-2" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <ul class="space-y-1" id="memberList">
+                    <!-- 成员列表将通过JavaScript动态生成 -->
+                    <li class="text-center py-4">
+                        <div class="w-6 h-6 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <p class="text-xs text-gray-400 mt-2">加载成员中...</p>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Bonk实时数据 -->
+            <div class="p-4 border-t border-gray-700">
+                <h3 class="font-bold mb-3">Bonk实时数据</h3>
+                <div class="bg-gray-800 rounded-xl p-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm text-gray-400">当前价格</span>
+                        <span class="text-sm font-semibold">$0.00006241</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm text-gray-400">24h 涨跌幅</span>
+                        <span class="text-sm font-semibold text-green-500">+12.34%</span>
+                    </div>
+                    <div class="h-16 mb-2">
+                        <!-- 简单的价格走势图 -->
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    <a href="#" class="text-bonk-orange hover:text-bonk-light text-sm flex items-center justify-center py-2 border border-bonk-orange rounded-lg transition-colors">
+                        查看详情
+                        <i class="fa fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 钱包连接成功提示 -->
+    <div id="walletToast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-bonk-orange text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3 z-50 hidden">
+        <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+            <i class="fa fa-dog text-bonk-orange animate-bounce-small"></i>
+        </div>
+        <div>
+            <p class="font-medium">已连接Solana钱包</p>
+            <p class="text-xs">现在可以发送NFT和查看身份标识了</p>
+        </div>
+    </div>
+
+    <!-- 图片查看模态框 -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="relative max-w-4xl max-h-full p-4">
+            <button id="closeImageModal" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 z-10">
+                <i class="fa fa-times"></i>
+            </button>
+            <img id="modalImage" src="" alt="查看图片" class="max-w-full max-h-full object-contain">
+        </div>
+    </div>
+
+    <!-- 登录弹窗 -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="loginModalContent">
+            <!-- 关闭按钮 -->
+            <button id="closeLoginModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            
+            <!-- 弹窗头部 -->
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-gradient-to-r from-bonk-orange to-bonk-dark rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-dog text-white text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">欢迎来到Bonk聊天</h2>
+                <p class="text-gray-400">加入Solana最活跃的meme社区</p>
+            </div>
+            
+            <!-- 登录选项 -->
+            <div class="space-y-4">
+                <!-- 用户名密码登录按钮 -->
+                <button id="usernamePasswordLoginBtn" class="w-full bg-gradient-to-r from-bonk-orange to-bonk-dark text-white rounded-xl py-4 px-6 font-medium transition-all duration-300 hover:shadow-lg hover:shadow-bonk-orange/25 flex items-center justify-center space-x-3 group">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <i class="fa fa-user text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold">用户名密码登录</div>
+                        <div class="text-sm opacity-90">已有账号？直接登录</div>
+                    </div>
+                    <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+                
+                <!-- 匿名登录按钮 -->
+                <button id="anonymousLoginBtn" class="w-full bg-transparent border-2 border-bonk-orange text-bonk-orange rounded-xl py-4 px-6 font-medium transition-all duration-300 hover:bg-bonk-orange hover:text-white flex items-center justify-center space-x-3 group">
+                    <div class="w-10 h-10 bg-bonk-orange/20 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                        <i class="fa fa-user-secret text-bonk-orange group-hover:text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold">匿名登录</div>
+                        <div class="text-sm opacity-90">设置用户名和头像</div>
+                    </div>
+                    <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+                
+                <!-- 钱包登录按钮 -->
+                <button id="walletLoginBtn" class="w-full bg-transparent border-2 border-solana-blue text-solana-blue rounded-xl py-4 px-6 font-medium transition-all duration-300 hover:bg-solana-blue hover:text-white flex items-center justify-center space-x-3 group">
+                    <div class="w-10 h-10 bg-solana-blue/20 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                        <i class="fa fa-wallet text-solana-blue group-hover:text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold">钱包登录</div>
+                        <div class="text-sm opacity-90">连接Solana钱包</div>
+                    </div>
+                    <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+            </div>
+            
+            <!-- 底部说明 -->
+            <div class="mt-8 text-center">
+                <p class="text-xs text-gray-500">
+                    登录即表示您同意我们的
+                    <a href="#" class="text-bonk-orange hover:text-bonk-light">服务条款</a>
+                    和
+                    <a href="#" class="text-bonk-orange hover:text-bonk-light">隐私政策</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 钱包选择弹窗 -->
+    <div id="walletSelectModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="walletSelectModalContent">
+            <!-- 关闭按钮 -->
+            <button id="closeWalletSelectModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            
+            <!-- 弹窗头部 -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-gradient-to-r from-solana-blue to-solana-dark rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-wallet text-white text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white mb-2">选择钱包</h2>
+                <p class="text-gray-400">选择您要连接的Solana钱包</p>
+            </div>
+            
+            <!-- 钱包选项 -->
+            <div class="space-y-3">
+                <!-- Phantom钱包 -->
+                <button id="phantomWalletBtn" class="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-xl py-4 px-6 font-medium transition-all duration-300 flex items-center justify-center space-x-3 group">
+                    <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                        <i class="fa fa-ghost text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold">Phantom</div>
+                        <div class="text-sm opacity-90">幽灵钱包</div>
+                    </div>
+                    <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+                
+                <!-- OKX钱包 -->
+                <button id="okxWalletBtn" class="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-xl py-4 px-6 font-medium transition-all duration-300 flex items-center justify-center space-x-3 group">
+                    <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                        <i class="fa fa-exchange text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold">OKX</div>
+                        <div class="text-sm opacity-90">OKX钱包</div>
+                    </div>
+                    <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+                
+                <!-- Solflare钱包 -->
+                <button id="solflareWalletBtn" class="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-xl py-4 px-6 font-medium transition-all duration-300 flex items-center justify-center space-x-3 group">
+                    <div class="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
+                        <i class="fa fa-sun-o text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold">Solflare</div>
+                        <div class="text-sm opacity-90">Solflare钱包</div>
+                    </div>
+                    <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+            </div>
+            
+            <!-- 底部说明 -->
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-500">
+                    没有钱包？<a href="https://phantom.app/" target="_blank" class="text-bonk-orange hover:text-bonk-light">下载Phantom</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户注册弹窗 -->
+    <div id="userRegisterModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="userRegisterModalContent">
+            <!-- 关闭按钮 -->
+            <button id="closeUserRegisterModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            
+            <!-- 弹窗头部 -->
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-gradient-to-r from-bonk-orange to-bonk-dark rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-user-plus text-white text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">创建您的账户</h2>
+                <p class="text-gray-400">设置用户名和头像开始聊天</p>
+            </div>
+            
+            <!-- 注册表单 -->
+            <form id="userRegisterForm" class="space-y-6">
+                <!-- 头像上传 -->
+                <div class="text-center">
+                    <div class="relative inline-block">
+                        <div id="avatarPreview" class="w-24 h-24 bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center cursor-pointer hover:bg-gray-600 transition-colors">
+                            <i class="fa fa-camera text-gray-400 text-2xl"></i>
+                        </div>
+                        <input type="file" id="avatarInput" accept="image/*" class="hidden">
+                        <div id="avatarLoading" class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center hidden">
+                            <div class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400">点击上传头像</p>
+                </div>
+                
+                <!-- 用户名输入 -->
+                <div>
+                    <label for="usernameInput" class="block text-sm font-medium text-gray-300 mb-2">用户名</label>
+                    <div class="relative">
+                        <input type="text" id="usernameInput" 
+                            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent"
+                            placeholder="输入用户名（2-20个字符）" 
+                            minlength="2" 
+                            maxlength="20" 
+                            required>
+                        <div id="usernameStatus" class="absolute right-3 top-1/2 transform -translate-y-1/2 hidden">
+                            <i class="fa fa-check text-green-500"></i>
+                        </div>
+                    </div>
+                    <p id="usernameError" class="text-red-500 text-xs mt-1 hidden">用户名已被使用</p>
+                    <p id="usernameHint" class="text-gray-400 text-xs mt-1">用户名将显示在聊天中</p>
+                </div>
+                
+                <!-- 密码输入 -->
+                <div>
+                    <label for="passwordInput" class="block text-sm font-medium text-gray-300 mb-2">密码</label>
+                    <div class="relative">
+                        <input type="password" id="passwordInput" 
+                            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent"
+                            placeholder="设置密码（6-20个字符）" 
+                            minlength="6" 
+                            maxlength="20" 
+                            required>
+                        <button type="button" id="togglePassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                    </div>
+                    <p id="passwordHint" class="text-gray-400 text-xs mt-1">密码用于下次登录</p>
+                </div>
+                
+                <!-- 确认密码输入 -->
+                <div>
+                    <label for="confirmPasswordInput" class="block text-sm font-medium text-gray-300 mb-2">确认密码</label>
+                    <div class="relative">
+                        <input type="password" id="confirmPasswordInput" 
+                            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent"
+                            placeholder="再次输入密码" 
+                            required>
+                        <button type="button" id="toggleConfirmPassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                    </div>
+                    <p id="confirmPasswordError" class="text-red-500 text-xs mt-1 hidden">两次输入的密码不一致</p>
+                </div>
+                
+                <!-- 用户标签选择 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">选择标签</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" class="badge-btn bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-3 py-2 text-sm transition-colors" data-badge="Bonk爱好者">
+                            Bonk爱好者
+                        </button>
+                        <button type="button" class="badge-btn bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-3 py-2 text-sm transition-colors" data-badge="持有NFT">
+                            持有NFT
+                        </button>
+                        <button type="button" class="badge-btn bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-3 py-2 text-sm transition-colors" data-badge="Bonk大佬">
+                            Bonk大佬
+                        </button>
+                        <button type="button" class="badge-btn bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-3 py-2 text-sm transition-colors" data-badge="Solana粉丝">
+                            Solana粉丝
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 注册按钮 -->
+                <button type="submit" id="registerBtn" class="w-full bg-gradient-to-r from-bonk-orange to-bonk-dark text-white rounded-xl py-4 px-6 font-medium transition-all duration-300 hover:shadow-lg hover:shadow-bonk-orange/25 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="registerBtnText">创建账户</span>
+                    <div id="registerBtnLoading" class="hidden">
+                        <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    </div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 用户名密码登录弹窗 -->
+    <div id="usernamePasswordLoginModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="usernamePasswordLoginModalContent">
+            <!-- 关闭按钮 -->
+            <button id="closeUsernamePasswordLoginModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            
+            <!-- 弹窗头部 -->
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-gradient-to-r from-bonk-orange to-bonk-dark rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-sign-in text-white text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">用户名密码登录</h2>
+                <p class="text-gray-400">输入用户名和密码登录</p>
+            </div>
+            
+            <!-- 登录表单 -->
+            <form id="usernamePasswordLoginForm" class="space-y-6">
+                <!-- 用户名输入 -->
+                <div>
+                    <label for="loginUsernameInput" class="block text-sm font-medium text-gray-300 mb-2">用户名</label>
+                    <input type="text" id="loginUsernameInput" 
+                        class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent"
+                        placeholder="输入用户名" 
+                        required>
+                </div>
+                
+                <!-- 密码输入 -->
+                <div>
+                    <label for="loginPasswordInput" class="block text-sm font-medium text-gray-300 mb-2">密码</label>
+                    <div class="relative">
+                        <input type="password" id="loginPasswordInput" 
+                            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent"
+                            placeholder="输入密码" 
+                            required>
+                        <button type="button" id="toggleLoginPassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 登录按钮 -->
+                <button type="submit" id="usernamePasswordLoginBtn" class="w-full bg-gradient-to-r from-bonk-orange to-bonk-dark text-white rounded-xl py-4 px-6 font-medium transition-all duration-300 hover:shadow-lg hover:shadow-bonk-orange/25 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="usernamePasswordLoginBtnText">登录</span>
+                    <div id="usernamePasswordLoginBtnLoading" class="hidden">
+                        <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    </div>
+                </button>
+                
+                <!-- 底部链接 -->
+                <div class="text-center">
+                    <p class="text-xs text-gray-500">
+                        还没有账号？
+                        <button type="button" id="switchToRegister" class="text-bonk-orange hover:text-bonk-light">立即注册</button>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 加载指示器 -->
+    <div id="loadingIndicator" class="fixed inset-0 bg-chat-bg bg-opacity-75 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="w-16 h-16 border-4 border-bonk-orange border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-white text-lg">正在连接Bonk聊天...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        // 等待Firebase初始化完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 等待Firebase模块加载
+            const checkFirebase = setInterval(() => {
+                if (window.firebase) {
+                    clearInterval(checkFirebase);
+                    initializeApp();
+                }
+            }, 100);
+        });
+
+        function initializeApp() {
+        // DOM元素
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const sidebar = document.getElementById('sidebar');
+        const communityPanel = document.getElementById('communityPanel');
+        const connectWalletBtn = document.getElementById('connectWallet');
+        const walletConnected = document.getElementById('walletConnected');
+        const walletToast = document.getElementById('walletToast');
+        const emojiBtn = document.getElementById('emojiBtn');
+        const emojiPanel = document.getElementById('emojiPanel');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const messageArea = document.getElementById('messageArea');
+        const emojiButtons = document.querySelectorAll('.emoji-btn');
+            const imageUploadBtn = document.getElementById('imageUploadBtn');
+            const imageInput = document.getElementById('imageInput');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginModal = document.getElementById('loginModal');
+            const loginModalContent = document.getElementById('loginModalContent');
+            const closeLoginModal = document.getElementById('closeLoginModal');
+            const anonymousLoginBtn = document.getElementById('anonymousLoginBtn');
+            const walletLoginBtn = document.getElementById('walletLoginBtn');
+            const userProfile = document.getElementById('userProfile');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const userName = document.getElementById('userName');
+            const userStatus = document.getElementById('userStatus');
+            const walletSelectModal = document.getElementById('walletSelectModal');
+            const walletSelectModalContent = document.getElementById('walletSelectModalContent');
+            const closeWalletSelectModal = document.getElementById('closeWalletSelectModal');
+            const phantomWalletBtn = document.getElementById('phantomWalletBtn');
+            const okxWalletBtn = document.getElementById('okxWalletBtn');
+            const solflareWalletBtn = document.getElementById('solflareWalletBtn');
+            const disconnectWalletBtn = document.getElementById('disconnectWalletBtn');
+            const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+            const userRegisterModal = document.getElementById('userRegisterModal');
+            const userRegisterModalContent = document.getElementById('userRegisterModalContent');
+            const closeUserRegisterModal = document.getElementById('closeUserRegisterModal');
+            const userRegisterForm = document.getElementById('userRegisterForm');
+            const avatarPreview = document.getElementById('avatarPreview');
+            const avatarInput = document.getElementById('avatarInput');
+            const avatarLoading = document.getElementById('avatarLoading');
+            const usernameInput = document.getElementById('usernameInput');
+            const usernameStatus = document.getElementById('usernameStatus');
+            const usernameError = document.getElementById('usernameError');
+            const usernameHint = document.getElementById('usernameHint');
+            const registerBtn = document.getElementById('registerBtn');
+            const registerBtnText = document.getElementById('registerBtnText');
+            const registerBtnLoading = document.getElementById('registerBtnLoading');
+            const badgeButtons = document.querySelectorAll('.badge-btn');
+            const userAvatarContainer = document.getElementById('userAvatarContainer');
+            const userAvatarIcon = document.getElementById('userAvatarIcon');
+            const memberList = document.getElementById('memberList');
+            const usernamePasswordLoginBtn = document.getElementById('usernamePasswordLoginBtn');
+            const usernamePasswordLoginModal = document.getElementById('usernamePasswordLoginModal');
+            const usernamePasswordLoginModalContent = document.getElementById('usernamePasswordLoginModalContent');
+            const closeUsernamePasswordLoginModal = document.getElementById('closeUsernamePasswordLoginModal');
+            const usernamePasswordLoginForm = document.getElementById('usernamePasswordLoginForm');
+            const loginUsernameInput = document.getElementById('loginUsernameInput');
+            const loginPasswordInput = document.getElementById('loginPasswordInput');
+            const toggleLoginPassword = document.getElementById('toggleLoginPassword');
+            const usernamePasswordLoginBtnText = document.getElementById('usernamePasswordLoginBtnText');
+            const usernamePasswordLoginBtnLoading = document.getElementById('usernamePasswordLoginBtnLoading');
+            const switchToRegister = document.getElementById('switchToRegister');
+            const passwordInput = document.getElementById('passwordInput');
+            const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+            const togglePassword = document.getElementById('togglePassword');
+            const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+            const confirmPasswordError = document.getElementById('confirmPasswordError');
+
+            // Firebase实例
+            const { auth, database, storage, ref, push, onValue, off, set, get, child, signInAnonymously, onAuthStateChanged } = window.firebase;
+
+            // 全局变量
+            let currentUser = null;
+            let messagesRef = null;
+            let userStatusRef = null;
+            let isTyping = false;
+            let typingTimeout = null;
+            let shouldAutoScroll = true; // 是否应该自动滚动到底部
+
+            // 用户数据
+            const userProfiles = {
+                'default': {
+                    name: 'Bonk用户',
+                    avatar: 'https://picsum.photos/id/1012/200',
+                    badge: 'Bonk爱好者',
+                    bonkAmount: '1k+ Bonk'
+                }
+            };
+
+            // 简单的密码哈希函数（实际应用中应使用更安全的方法）
+            async function hashPassword(password) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            // 密码显示/隐藏切换
+            function setupPasswordToggles() {
+                // 注册页面的密码显示/隐藏
+                togglePassword.addEventListener('click', () => {
+                    const type = passwordInput.type === 'password' ? 'text' : 'password';
+                    passwordInput.type = type;
+                    togglePassword.innerHTML = type === 'password' ? '<i class="fa fa-eye"></i>' : '<i class="fa fa-eye-slash"></i>';
+                });
+
+                toggleConfirmPassword.addEventListener('click', () => {
+                    const type = confirmPasswordInput.type === 'password' ? 'text' : 'password';
+                    confirmPasswordInput.type = type;
+                    toggleConfirmPassword.innerHTML = type === 'password' ? '<i class="fa fa-eye"></i>' : '<i class="fa fa-eye-slash"></i>';
+                });
+
+                // 登录页面的密码显示/隐藏
+                toggleLoginPassword.addEventListener('click', () => {
+                    const type = loginPasswordInput.type === 'password' ? 'text' : 'password';
+                    loginPasswordInput.type = type;
+                    toggleLoginPassword.innerHTML = type === 'password' ? '<i class="fa fa-eye"></i>' : '<i class="fa fa-eye-slash"></i>';
+                });
+            }
+
+            // 密码验证
+            function validatePasswords() {
+                const password = passwordInput.value;
+                const confirmPassword = confirmPasswordInput.value;
+                
+                if (password !== confirmPassword) {
+                    confirmPasswordError.classList.remove('hidden');
+                    return false;
+                } else {
+                    confirmPasswordError.classList.add('hidden');
+                    return true;
+                }
+            }
+
+            // 监听密码输入变化
+            confirmPasswordInput.addEventListener('input', validatePasswords);
+            passwordInput.addEventListener('input', validatePasswords);
+
+            // 初始化认证
+            function initializeAuth() {
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        console.log('用户已登录:', user.uid);
+                        loadUserProfile(user.uid);
+                        initializeChat();
+                        updateUserStatus('online');
+                        hideLoadingIndicator();
+                    } else {
+                        // 不自动登录，等待用户手动登录
+                        hideLoadingIndicator();
+                        updateLoginUI(false);
+                    }
+                });
+            }
+
+            // 加载用户资料
+            async function loadUserProfile(userId) {
+                try {
+                    const userProfileRef = ref(database, `userProfiles/${userId}`);
+                    const snapshot = await get(userProfileRef);
+                    
+                    if (snapshot.exists()) {
+                        const profile = snapshot.val();
+                        userProfiles[userId] = {
+                            name: profile.username,
+                            avatar: profile.avatar,
+                            badge: profile.badge
+                        };
+                        console.log('用户资料加载成功:', profile);
+                        
+                        // 更新UI显示
+                        updateLoginUI(true);
+                        
+                        // 更新用户状态为在线
+                        updateUserStatus('online');
+                    } else {
+                        console.log('用户资料不存在，需要注册');
+                    }
+                } catch (error) {
+                    console.error('加载用户资料失败:', error);
+                }
+            }
+
+            // 更新登录UI状态
+            function updateLoginUI(isLoggedIn) {
+                if (isLoggedIn) {
+                    loginBtn.classList.add('hidden');
+                    userProfile.classList.remove('hidden');
+                    // 聊天输入区可用
+                    messageInput.disabled = false;
+                    sendBtn.disabled = false;
+                    sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    imageUploadBtn.disabled = false;
+                    emojiBtn.disabled = false;
+                    messageInput.placeholder = '说点Bonk相关的...';
+                    // 更新用户信息显示
+                    const userProfileData = userProfiles[currentUser.uid];
+                    if (userProfileData) {
+                        userName.textContent = userProfileData.name;
+                        userStatus.textContent = userProfileData.badge || '在线';
+                        
+                        // 更新头像
+                        if (userProfileData.avatar) {
+                            // 隐藏默认图标
+                            userAvatarIcon.classList.add('hidden');
+                            // 设置头像图片
+                            userAvatarContainer.innerHTML = `<img src="${userProfileData.avatar}" alt="用户头像" class="w-full h-full rounded-full object-cover">`;
+                        } else {
+                            // 显示默认图标
+                            userAvatarIcon.classList.remove('hidden');
+                            userAvatarContainer.innerHTML = `<i class="fa fa-user text-chat-text-dark font-bold" id="userAvatarIcon"></i>`;
+                        }
+                    } else {
+                        userName.textContent = 'Bonk用户';
+                        userStatus.textContent = '在线';
+                        // 显示默认图标
+                        userAvatarIcon.classList.remove('hidden');
+                        userAvatarContainer.innerHTML = `<i class="fa fa-user text-chat-text-dark font-bold" id="userAvatarIcon"></i>`;
+                    }
+                } else {
+                    loginBtn.classList.remove('hidden');
+                    userProfile.classList.add('hidden');
+                    // 聊天输入区禁用
+                    messageInput.disabled = true;
+                    sendBtn.disabled = true;
+                    sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    imageUploadBtn.disabled = true;
+                    emojiBtn.disabled = true;
+                    messageInput.placeholder = '请先登录后才能发言';
+                }
+            }
+
+            // 隐藏加载指示器
+            function hideLoadingIndicator() {
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) {
+                    loadingIndicator.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingIndicator.style.display = 'none';
+                    }, 300);
+                }
+            }
+
+                        // 初始化聊天功能
+            function initializeChat() {
+                messagesRef = ref(database, 'messages');
+                userStatusRef = ref(database, 'userStatus');
+                
+                // 监听消息
+                onValue(messagesRef, (snapshot) => {
+                    const messages = [];
+                    snapshot.forEach((childSnapshot) => {
+                        messages.push({
+                            id: childSnapshot.key,
+                            ...childSnapshot.val()
+                        });
+                    });
+                    
+                    // 按时间排序
+                    messages.sort((a, b) => a.timestamp - b.timestamp);
+                    displayMessages(messages);
+                });
+
+                // 监听用户状态
+                onValue(userStatusRef, (snapshot) => {
+                    updateOnlineUsers(snapshot.val());
+                    // 更新在线用户数量
+                    if (snapshot.exists()) {
+                        const users = snapshot.val();
+                        const onlineCount = Object.values(users).filter(user => user.status === 'online').length;
+                        updateOnlineCount(onlineCount);
+                    }
+                });
+
+                // 监听输入状态
+                const typingRef = ref(database, 'typing');
+                onValue(typingRef, (snapshot) => {
+                    updateTypingIndicator(snapshot.val());
+                });
+                
+                // 初始化群成员列表
+                initializeMemberList();
+            }
+
+            // 显示消息
+            function displayMessages(messages) {
+                // 清空消息区域（保留系统消息）
+                const systemMessages = messageArea.querySelectorAll('.flex.justify-center');
+                messageArea.innerHTML = '';
+                systemMessages.forEach(msg => messageArea.appendChild(msg));
+
+                messages.forEach(message => {
+                    const messageElement = createMessageElement(message);
+                    messageArea.appendChild(messageElement);
+                });
+
+                // 只在应该自动滚动时才滚动到底部
+                if (shouldAutoScroll) {
+                    setTimeout(() => {
+                        messageArea.scrollTo({
+                            top: messageArea.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }, 100);
+                }
+            }
+
+            // 创建消息元素
+            function createMessageElement(message) {
+                const isOwnMessage = message.userId === currentUser.uid;
+                const timeString = new Date(message.timestamp).toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `flex items-start space-x-3 message-appear ${isOwnMessage ? 'justify-end' : ''}`;
+
+                // 头像部分
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'relative';
+                const avatarImg = document.createElement('img');
+                avatarImg.src = message.userAvatar || (isOwnMessage ? 'https://picsum.photos/id/1012/200' : 'https://picsum.photos/id/237/200');
+                avatarImg.alt = isOwnMessage ? '自己的头像' : '用户头像';
+                avatarImg.className = `w-10 h-10 rounded-full object-cover border-2 ${isOwnMessage ? 'border-bonk-orange' : 'border-gray-700'}`;
+                avatarDiv.appendChild(avatarImg);
+                const statusDot = document.createElement('div');
+                statusDot.className = 'absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-chat-bg';
+                avatarDiv.appendChild(statusDot);
+
+                // 内容部分
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'max-w-[80%]';
+
+                // 顶部信息
+                const infoDiv = document.createElement('div');
+                infoDiv.className = `flex items-center ${isOwnMessage ? 'justify-end' : ''} space-x-2 mb-1`;
+                if (isOwnMessage) {
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'text-gray-400 text-xs';
+                    timeSpan.textContent = timeString;
+                    infoDiv.appendChild(timeSpan);
+                    const badgeSpan = document.createElement('span');
+                    badgeSpan.className = 'bg-bonk-orange/20 text-bonk-orange text-xs px-2 py-0.5 rounded-full';
+                    badgeSpan.textContent = message.userBadge || 'Bonk大佬';
+                    infoDiv.appendChild(badgeSpan);
+                } else {
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'font-semibold text-sm';
+                    nameSpan.textContent = message.userName || 'Bonk用户';
+                    infoDiv.appendChild(nameSpan);
+                    const badgeSpan = document.createElement('span');
+                    badgeSpan.className = 'bg-solana-blue/20 text-solana-blue text-xs px-2 py-0.5 rounded-full';
+                    badgeSpan.textContent = message.userBadge || 'Bonk爱好者';
+                    infoDiv.appendChild(badgeSpan);
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'text-gray-400 text-xs';
+                    timeSpan.textContent = timeString;
+                    infoDiv.appendChild(timeSpan);
+                }
+                contentDiv.appendChild(infoDiv);
+
+                // 消息内容
+                if (message.type === 'image') {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.className = 'rounded-xl overflow-hidden border border-gray-700 max-w-xs';
+                    const img = document.createElement('img');
+                    img.src = message.imageUrl;
+                    img.alt = '聊天图片';
+                    img.className = 'w-full h-auto cursor-pointer hover:opacity-90 transition-opacity';
+                    img.onclick = () => openImageModal(message.imageUrl);
+                    imageContainer.appendChild(img);
+                    contentDiv.appendChild(imageContainer);
+                } else {
+                    const textContainer = document.createElement('div');
+                    textContainer.className = `bg-${isOwnMessage ? 'gradient-to-r from-bonk-orange to-bonk-dark text-white' : 'chat-bubble text-chat-textDark'} rounded-2xl ${isOwnMessage ? 'rounded-tr-none' : 'rounded-tl-none'} px-4 py-2.5 text-sm`;
+                    textContainer.innerHTML = formatMessageText(message.text);
+                    contentDiv.appendChild(textContainer);
+                }
+
+                // 组装
+                if (isOwnMessage) {
+                    messageDiv.appendChild(contentDiv);
+                    messageDiv.appendChild(avatarDiv);
+                } else {
+                    messageDiv.appendChild(avatarDiv);
+                    messageDiv.appendChild(contentDiv);
+                }
+                return messageDiv;
+            }
+
+            // 格式化消息文本
+            function formatMessageText(text) {
+                if (typeof text !== 'string') return '';
+                
+                // 安全转义HTML，然后进行安全的格式化
+                const escapedText = sanitizeHTML(text);
+                return escapedText
+                    .replace(/Bonk!/g, 'Bonk! 🐶')
+                    .replace(/暴涨|拉盘/g, match => `<span class="bonk-highlight">${match}</span>`)
+                    .replace(/\n/g, '<br>');
+            }
+
+            // 发送消息
+            function sendMessage() {
+                const messageText = validateInput(messageInput.value.trim(), 1000);
+                if (!messageText) return;
+                
+                if (!currentUser) {
+                    showToast('请先登录后再发送消息', 'warning');
+                    showLoginModal();
+                    return;
+                }
+
+                const userProfileData = userProfiles[currentUser.uid];
+                const messageData = {
+                    text: messageText,
+                    userId: currentUser.uid,
+                    userName: userProfileData?.name || 'Bonk用户',
+                    userAvatar: userProfileData?.avatar || 'https://picsum.photos/id/1012/200',
+                    userBadge: userProfileData?.badge || 'Bonk爱好者',
+                    timestamp: Date.now()
+                };
+
+                // 推送到Firebase
+                push(messagesRef, messageData)
+                    .then(() => {
+                        messageInput.value = '';
+                        messageInput.style.height = 'auto';
+                        updateTypingStatus(false);
+                        // 发送消息后总是滚动到底部
+                        shouldAutoScroll = true;
+                    })
+                    .catch((error) => {
+                        console.error('发送消息失败:', error);
+                        showToast('发送失败，请重试', 'error');
+                    });
+            }
+
+            // 更新用户状态
+            function updateUserStatus(status) {
+                if (!currentUser) return;
+                
+                const userProfileData = userProfiles[currentUser.uid];
+                set(ref(database, `userStatus/${currentUser.uid}`), {
+                    status: status,
+                    lastSeen: Date.now(),
+                    userName: userProfileData?.name || 'Bonk用户',
+                    userAvatar: userProfileData?.avatar || 'https://picsum.photos/id/1012/200'
+                });
+            }
+
+            // 更新在线用户列表
+            function updateOnlineUsers(users) {
+                if (!users) return;
+                
+                const onlineUsers = Object.entries(users)
+                    .filter(([uid, user]) => user.status === 'online' && uid !== currentUser.uid)
+                    .slice(0, 10);
+
+                // 这里可以更新右侧用户列表
+                console.log('在线用户:', onlineUsers);
+            }
+
+            // 更新输入状态指示器
+            function updateTypingIndicator(typingUsers) {
+                if (!typingUsers) return;
+                
+                const typingIndicator = messageArea.querySelector('.animate-pulse-slow');
+                if (!typingIndicator) return;
+                
+                const typingUsersList = Object.entries(typingUsers)
+                    .filter(([uid, user]) => uid !== currentUser.uid)
+                    .filter(([uid, user]) => Date.now() - user.timestamp < 5000); // 5秒内的输入状态
+
+                if (typingUsersList.length > 0) {
+                    const userNames = typingUsersList.map(([uid, user]) => validateInput(user.userName, 50)).join(', ');
+                    // 安全创建输入指示器
+                    typingIndicator.innerHTML = '';
+                    const span = document.createElement('span');
+                    span.className = 'bg-bonk-orange/20 text-bonk-orange text-xs px-4 py-1 rounded-full animate-pulse-slow';
+                    span.textContent = `${userNames} 正在输入...`;
+                    typingIndicator.appendChild(span);
+                    typingIndicator.parentElement.classList.remove('hidden');
+                } else {
+                    typingIndicator.parentElement.classList.add('hidden');
+                }
+            }
+
+            // 上传图片
+            function uploadImage(file) {
+                try {
+                    validateImageFile(file);
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    return;
+                }
+                
+                const storageRef = window.firebase.storageRef;
+                const uploadBytes = window.firebase.uploadBytes;
+                const getDownloadURL = window.firebase.getDownloadURL;
+                
+                // 安全生成文件名
+                const timestamp = Date.now();
+                const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const imageRef = storageRef(storage, `chat-images/${timestamp}_${safeFileName}`);
+                
+                uploadBytes(imageRef, file)
+                    .then((snapshot) => {
+                        return getDownloadURL(snapshot.ref);
+                    })
+                    .then((downloadURL) => {
+                        sendImageMessage(downloadURL);
+                    })
+                    .catch((error) => {
+                        console.error('图片上传失败:', error);
+                        showToast('图片上传失败，请重试', 'error');
+                    });
+            }
+
+            // 发送图片消息
+            function sendImageMessage(imageUrl) {
+                if (!currentUser) return;
+
+                const userProfileData = userProfiles[currentUser.uid];
+                const messageData = {
+                    type: 'image',
+                    imageUrl: imageUrl,
+                    userId: currentUser.uid,
+                    userName: userProfileData?.name || 'Bonk用户',
+                    userAvatar: userProfileData?.avatar || 'https://picsum.photos/id/1012/200',
+                    userBadge: userProfileData?.badge || 'Bonk爱好者',
+                    timestamp: Date.now()
+                };
+
+                push(messagesRef, messageData)
+                    .catch((error) => {
+                        console.error('发送图片消息失败:', error);
+                        showToast('发送失败，请重试', 'error');
+                    });
+            }
+
+            // 更新输入状态
+            function updateTypingStatus(typing) {
+                if (!currentUser) return;
+                
+                const userProfileData = userProfiles[currentUser.uid];
+                if (typing) {
+                    isTyping = true;
+                    set(ref(database, `typing/${currentUser.uid}`), {
+                        userName: userProfileData?.name || 'Bonk用户',
+                        timestamp: Date.now()
+                    });
+                } else {
+                    isTyping = false;
+                    set(ref(database, `typing/${currentUser.uid}`), null);
+                }
+            }
+
+            // 显示提示消息
+            function showToast(message, type = 'info') {
+                // 验证输入
+                const safeMessage = validateInput(message, 200);
+                if (!safeMessage) return;
+                
+                let bgColor = 'blue';
+                if (type === 'error') bgColor = 'red';
+                else if (type === 'success') bgColor = 'green';
+                else if (type === 'warning') bgColor = 'yellow';
+                
+                const toast = document.createElement('div');
+                toast.className = `fixed top-4 right-4 bg-${bgColor}-500 text-white px-4 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`;
+                toast.textContent = safeMessage;
+                document.body.appendChild(toast);
+                
+                // 动画进入
+                setTimeout(() => {
+                    toast.classList.remove('translate-x-full');
+                }, 100);
+                
+                setTimeout(() => {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 3000);
+            }
+
+            // 添加消息反应
+            function addMessageReaction(messageId, reaction) {
+                if (!currentUser) return;
+                
+                set(ref(database, `messages/${messageId}/reactions/${currentUser.uid}`), {
+                    reaction: reaction,
+                    timestamp: Date.now(),
+                    userName: userProfiles[currentUser.uid]?.name || 'Bonk用户'
+                });
+            }
+
+            // 获取在线用户数量
+            function getOnlineUserCount() {
+                if (!userStatusRef) return 0;
+                
+                get(userStatusRef).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const users = snapshot.val();
+                        const onlineCount = Object.values(users).filter(user => user.status === 'online').length;
+                        updateOnlineCount(onlineCount);
+                    }
+                });
+            }
+
+            // 更新在线用户数量显示
+            function updateOnlineCount(count) {
+                const onlineCountElements = document.querySelectorAll('.online-count');
+                onlineCountElements.forEach(element => {
+                    element.textContent = `${count}人在线`;
+                });
+            }
+
+            // 初始化群成员列表
+            function initializeMemberList() {
+                // 监听所有用户资料
+                const userProfilesRef = ref(database, 'userProfiles');
+                onValue(userProfilesRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const profiles = snapshot.val();
+                        displayMemberList(profiles);
+                    } else {
+                        displayMemberList({});
+                    }
+                });
+                
+                // 监听用户状态变化
+                const userStatusRef = ref(database, 'userStatus');
+                onValue(userStatusRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const userStatus = snapshot.val();
+                        updateMemberStatus(userStatus);
+                    }
+                });
+            }
+
+            // 显示群成员列表
+            function displayMemberList(profiles) {
+                if (!memberList) return;
+                
+                memberList.innerHTML = '';
+                
+                if (Object.keys(profiles).length === 0) {
+                    memberList.innerHTML = `
+                        <li class="text-center py-4">
+                            <i class="fa fa-users text-gray-400 text-2xl mb-2"></i>
+                            <p class="text-xs text-gray-400">暂无成员</p>
+                        </li>
+                    `;
+                    return;
+                }
+                
+                // 将用户资料转换为数组并排序
+                const members = Object.entries(profiles).map(([userId, profile]) => ({
+                    userId,
+                    ...profile
+                })).sort((a, b) => {
+                    // 按最后在线时间排序，在线用户优先
+                    const aLastSeen = a.lastSeen || 0;
+                    const bLastSeen = b.lastSeen || 0;
+                    return bLastSeen - aLastSeen;
+                });
+                
+                members.forEach(member => {
+                    const memberElement = createMemberElement(member);
+                    memberList.appendChild(memberElement);
+                });
+            }
+
+            // 创建成员元素
+            function createMemberElement(member) {
+                const li = document.createElement('li');
+                li.className = 'member-item';
+                li.dataset.userId = member.userId;
+                
+                const isCurrentUser = currentUser && member.userId === currentUser.uid;
+                const borderClass = isCurrentUser ? 'border-bonk-orange' : 'border-gray-700';
+                
+                li.innerHTML = `
+                    <a href="#" class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors">
+                        <div class="relative">
+                            <img src="${member.avatar || 'https://picsum.photos/id/1012/200'}" 
+                                alt="${member.username || '用户'}的头像" 
+                                class="w-10 h-10 rounded-full object-cover border-2 ${borderClass}"
+                                onerror="this.src='https://picsum.photos/id/1012/200'">
+                            <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-500 rounded-full border-2 border-chat-bg member-status" data-user-id="${member.userId}"></div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium truncate">${member.username || 'Bonk用户'}</p>
+                            <p class="text-xs text-gray-400 truncate member-badge" data-user-id="${member.userId}">${member.badge || 'Bonk爱好者'}</p>
+                        </div>
+                    </a>
+                `;
+                
+                return li;
+            }
+
+            // 更新成员状态
+            function updateMemberStatus(userStatus) {
+                if (!userStatus) return;
+                
+                // 更新在线状态指示器
+                Object.entries(userStatus).forEach(([userId, status]) => {
+                    const statusElement = document.querySelector(`.member-status[data-user-id="${userId}"]`);
+                    if (statusElement) {
+                        if (status.status === 'online') {
+                            statusElement.className = 'absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-chat-bg member-status';
+                            statusElement.dataset.userId = userId;
+                        } else {
+                            statusElement.className = 'absolute -bottom-1 -right-1 w-4 h-4 bg-gray-500 rounded-full border-2 border-chat-bg member-status';
+                            statusElement.dataset.userId = userId;
+                        }
+                    }
+                });
+                
+                // 更新在线用户数量
+                const onlineCount = Object.values(userStatus).filter(user => user.status === 'online').length;
+                updateOnlineCount(onlineCount);
+            }
+
+            // 事件监听器
+        mobileMenuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('fixed');
+            sidebar.classList.toggle('inset-0');
+            sidebar.classList.toggle('w-full');
+        });
+
+            // 登录弹窗功能
+            loginBtn.addEventListener('click', () => {
+                showLoginModal();
+            });
+
+            closeLoginModal.addEventListener('click', () => {
+                hideLoginModal();
+            });
+
+            // 点击弹窗外部关闭
+            loginModal.addEventListener('click', (e) => {
+                if (e.target.id === 'loginModal') {
+                    hideLoginModal();
+                }
+            });
+
+            // 匿名登录
+            anonymousLoginBtn.addEventListener('click', () => {
+                hideLoginModal();
+                showUserRegisterModal();
+            });
+
+            // 钱包登录
+            walletLoginBtn.addEventListener('click', () => {
+                hideLoginModal();
+                showWalletSelectModal();
+            });
+
+            // 用户名密码登录
+            usernamePasswordLoginBtn.addEventListener('click', () => {
+                hideLoginModal();
+                showUsernamePasswordLoginModal();
+            });
+
+            // 用户名密码登录弹窗功能
+            closeUsernamePasswordLoginModal.addEventListener('click', () => {
+                hideUsernamePasswordLoginModal();
+            });
+
+            // 点击弹窗外部关闭
+            usernamePasswordLoginModal.addEventListener('click', (e) => {
+                if (e.target.id === 'usernamePasswordLoginModal') {
+                    hideUsernamePasswordLoginModal();
+                }
+            });
+
+            // 显示用户名密码登录弹窗
+            function showUsernamePasswordLoginModal() {
+                usernamePasswordLoginModal.classList.remove('hidden');
+                setTimeout(() => {
+                    usernamePasswordLoginModalContent.classList.remove('scale-95', 'opacity-0');
+                    usernamePasswordLoginModalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+
+            // 隐藏用户名密码登录弹窗
+            function hideUsernamePasswordLoginModal() {
+                usernamePasswordLoginModalContent.classList.remove('scale-100', 'opacity-100');
+                usernamePasswordLoginModalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    usernamePasswordLoginModal.classList.add('hidden');
+                    // 清空表单
+                    usernamePasswordLoginForm.reset();
+                }, 300);
+            }
+
+            // 切换到注册
+            switchToRegister.addEventListener('click', () => {
+                hideUsernamePasswordLoginModal();
+                showUserRegisterModal();
+            });
+
+            // 用户名密码登录表单提交
+            usernamePasswordLoginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = loginUsernameInput.value.trim();
+                const password = loginPasswordInput.value;
+                
+                if (!username || !password) {
+                    showToast('请输入用户名和密码', 'error');
+                    return;
+                }
+                
+                // 显示加载状态
+                usernamePasswordLoginBtn.disabled = true;
+                usernamePasswordLoginBtnText.classList.add('hidden');
+                usernamePasswordLoginBtnLoading.classList.remove('hidden');
+                
+                try {
+                    await performUsernamePasswordLogin(username, password);
+                } catch (error) {
+                    console.error('用户名密码登录失败:', error);
+                    showToast('登录失败: ' + error.message, 'error');
+                    
+                    // 恢复按钮状态
+                    usernamePasswordLoginBtn.disabled = false;
+                    usernamePasswordLoginBtnText.classList.remove('hidden');
+                    usernamePasswordLoginBtnLoading.classList.add('hidden');
+                }
+            });
+
+            // 执行用户名密码登录
+            async function performUsernamePasswordLogin(username, password) {
+                try {
+                    // 先检查用户名是否存在
+                    const usernameRef = ref(database, `usernames/${username}`);
+                    const usernameSnapshot = await get(usernameRef);
+                    
+                    if (!usernameSnapshot.exists()) {
+                        throw new Error('用户名不存在');
+                    }
+                    
+                    const userId = usernameSnapshot.val().userId;
+                    
+                    // 获取用户资料
+                    const userProfileRef = ref(database, `userProfiles/${userId}`);
+                    const profileSnapshot = await get(userProfileRef);
+                    
+                    if (!profileSnapshot.exists()) {
+                        throw new Error('用户资料不存在');
+                    }
+                    
+                    const profile = profileSnapshot.val();
+                    
+                    // 验证密码
+                    const hashedPassword = await hashPassword(password);
+                    if (profile.passwordHash !== hashedPassword) {
+                        throw new Error('密码错误');
+                    }
+                    
+                    // 使用匿名登录（因为Firebase Auth不支持用户名密码登录）
+                    const authResult = await signInAnonymously(auth);
+                    
+                    // 更新本地用户资料
+                    userProfiles[authResult.user.uid] = {
+                        name: profile.username,
+                        avatar: profile.avatar,
+                        badge: profile.badge
+                    };
+                    
+                    console.log('用户名密码登录成功:', authResult.user.uid);
+                    hideUsernamePasswordLoginModal();
+                    showToast('登录成功！欢迎回来', 'success');
+                    
+                    // 立即更新UI显示
+                    updateLoginUI(true);
+                    
+                    // 更新用户状态为在线
+                    updateUserStatus('online');
+                    
+                } catch (error) {
+                    throw error;
+                }
+            }
+
+            // 监听钱包连接事件
+            window.addEventListener('walletConnected', (e) => {
+            connectWalletBtn.classList.add('hidden');
+            walletConnected.classList.remove('hidden');
+            
+                const address = e.detail.address;
+                const walletType = e.detail.walletType || 'Solana';
+                const shortAddress = address.slice(0,6) + '...' + address.slice(-4);
+                
+                walletConnected.querySelector('p.text-sm').textContent = `${walletType}钱包已连接`;
+                walletConnected.querySelector('p.text-xs').textContent = shortAddress;
+                
+            walletToast.classList.remove('hidden');
+                setTimeout(() => { walletToast.classList.add('hidden'); }, 3000);
+            });
+
+            // 断开钱包连接
+            disconnectWalletBtn.addEventListener('click', () => {
+                window.disconnectSolanaWallet().then(() => {
+                    connectWalletBtn.classList.remove('hidden');
+                    walletConnected.classList.add('hidden');
+                    showToast('钱包已断开连接', 'info');
+                }).catch((error) => {
+                    console.error('断开钱包连接失败:', error);
+                    showToast('断开连接失败，请重试', 'error');
+                });
+            });
+
+            // 退出登录
+            logoutBtn.addEventListener('click', () => {
+                performLogout();
+            });
+
+            // 显示登录弹窗
+            function showLoginModal() {
+                loginModal.classList.remove('hidden');
+            setTimeout(() => {
+                    loginModalContent.classList.remove('scale-95', 'opacity-0');
+                    loginModalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+
+            // 隐藏登录弹窗
+            function hideLoginModal() {
+                loginModalContent.classList.remove('scale-100', 'opacity-100');
+                loginModalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    loginModal.classList.add('hidden');
+                }, 300);
+            }
+
+            // 执行匿名登录
+            function performAnonymousLogin() {
+                anonymousLoginBtn.disabled = true;
+                anonymousLoginBtn.innerHTML = `
+                    <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>登录中...</span>
+                `;
+
+                signInAnonymously(auth)
+                    .then((result) => {
+                        console.log('匿名登录成功');
+                        hideLoginModal();
+                        showToast('登录成功！欢迎来到Bonk聊天', 'success');
+                    })
+                    .catch((error) => {
+                        console.error('匿名登录失败:', error);
+                        showToast('登录失败，请重试', 'error');
+                        // 恢复按钮状态
+                        anonymousLoginBtn.disabled = false;
+                        anonymousLoginBtn.innerHTML = `
+                            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                <i class="fa fa-user-secret text-white"></i>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-semibold">匿名登录</div>
+                                <div class="text-sm opacity-90">快速开始聊天</div>
+                            </div>
+                            <i class="fa fa-arrow-right ml-auto opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                        `;
+                    });
+            }
+
+            // 执行退出登录
+            function performLogout() {
+                // 先更新用户状态为离线
+                updateUserStatus('offline');
+                
+                const { signOut } = window.firebase;
+                signOut(auth)
+                    .then(() => {
+                        console.log('退出登录成功');
+                        showToast('已退出登录', 'info');
+                    })
+                    .catch((error) => {
+                        console.error('退出登录失败:', error);
+                        showToast('退出失败，请重试', 'error');
+                    });
+            }
+
+            // 钱包选择弹窗功能
+            closeWalletSelectModal.addEventListener('click', () => {
+                hideWalletSelectModal();
+            });
+
+            // 点击弹窗外部关闭
+            walletSelectModal.addEventListener('click', (e) => {
+                if (e.target.id === 'walletSelectModal') {
+                    hideWalletSelectModal();
+                }
+            });
+
+            // 显示钱包选择弹窗
+            function showWalletSelectModal() {
+                walletSelectModal.classList.remove('hidden');
+                setTimeout(() => {
+                    walletSelectModalContent.classList.remove('scale-95', 'opacity-0');
+                    walletSelectModalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+
+            // 隐藏钱包选择弹窗
+            function hideWalletSelectModal() {
+                walletSelectModalContent.classList.remove('scale-100', 'opacity-100');
+                walletSelectModalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    walletSelectModal.classList.add('hidden');
+                }, 300);
+            }
+
+            // 钱包按钮事件
+            phantomWalletBtn.addEventListener('click', () => {
+                hideWalletSelectModal();
+                connectSpecificWallet('phantom');
+            });
+
+            okxWalletBtn.addEventListener('click', () => {
+                hideWalletSelectModal();
+                connectSpecificWallet('okx');
+            });
+
+            solflareWalletBtn.addEventListener('click', () => {
+                hideWalletSelectModal();
+                connectSpecificWallet('solflare');
+            });
+
+            // 连接特定钱包
+            function connectSpecificWallet(walletType) {
+                console.log('连接钱包类型:', walletType);
+                
+                // 显示连接中状态
+                showToast(`正在连接${walletType}钱包...`, 'info');
+                
+                window.connectSolanaWallet(walletType).then((address) => {
+                    console.log('钱包连接成功:', address);
+                    showToast(`${walletType}钱包连接成功！`, 'success');
+                }).catch((error) => {
+                    console.error('钱包连接失败:', error);
+                    showToast(`${walletType}钱包连接失败: ${error.message}`, 'error');
+                });
+            }
+
+            // 用户注册弹窗功能
+            closeUserRegisterModal.addEventListener('click', () => {
+                hideUserRegisterModal();
+            });
+
+            // 点击弹窗外部关闭
+            userRegisterModal.addEventListener('click', (e) => {
+                if (e.target.id === 'userRegisterModal') {
+                    hideUserRegisterModal();
+                }
+            });
+
+            // 显示用户注册弹窗
+            function showUserRegisterModal() {
+                userRegisterModal.classList.remove('hidden');
+                setTimeout(() => {
+                    userRegisterModalContent.classList.remove('scale-95', 'opacity-0');
+                    userRegisterModalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+
+            // 隐藏用户注册弹窗
+            function hideUserRegisterModal() {
+                userRegisterModalContent.classList.remove('scale-100', 'opacity-100');
+                userRegisterModalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    userRegisterModal.classList.add('hidden');
+                }, 300);
+            }
+
+            // 头像上传功能
+            avatarPreview.addEventListener('click', () => {
+                avatarInput.click();
+            });
+
+            avatarInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        validateImageFile(file);
+                        uploadAvatar(file);
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                }
+            });
+
+            // 安全工具函数
+            function sanitizeHTML(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function validateInput(input, maxLength = 100) {
+                if (typeof input !== 'string') return '';
+                return input.trim().substring(0, maxLength);
+            }
+
+            function validateImageFile(file) {
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                
+                if (!allowedTypes.includes(file.type)) {
+                    throw new Error('不支持的文件类型');
+                }
+                if (file.size > maxSize) {
+                    throw new Error('文件大小超过限制');
+                }
+                return true;
+            }
+
+            // 上传头像
+            function uploadAvatar(file) {
+                try {
+                    validateImageFile(file);
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    return;
+                }
+                
+                avatarLoading.classList.remove('hidden');
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // 安全创建图片元素，避免innerHTML的XSS风险
+                    avatarPreview.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.alt = '头像预览';
+                    img.className = 'w-full h-full rounded-full object-cover';
+                    avatarPreview.appendChild(img);
+                    avatarLoading.classList.add('hidden');
+                };
+                reader.onerror = () => {
+                    showToast('头像加载失败', 'error');
+                    avatarLoading.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            // 用户名验证
+            let usernameCheckTimeout = null;
+            usernameInput.addEventListener('input', (e) => {
+                const username = e.target.value.trim();
+                
+                // 清除之前的定时器
+                if (usernameCheckTimeout) {
+                    clearTimeout(usernameCheckTimeout);
+                }
+                
+                // 重置状态
+                usernameStatus.classList.add('hidden');
+                usernameError.classList.add('hidden');
+                usernameHint.classList.remove('hidden');
+                
+                if (username.length >= 2) {
+                    // 延迟检查用户名
+                    usernameCheckTimeout = setTimeout(() => {
+                        checkUsernameAvailability(username);
+                    }, 500);
+                }
+            });
+
+            // 检查用户名是否可用
+            async function checkUsernameAvailability(username) {
+                try {
+                    // 验证用户名格式
+                    const cleanUsername = validateInput(username, 20);
+                    if (cleanUsername.length < 2) {
+                        return;
+                    }
+                    
+                    const usernameRef = ref(database, `usernames/${cleanUsername}`);
+                    const snapshot = await get(usernameRef);
+                    
+                    if (snapshot.exists()) {
+                        // 用户名已存在
+                        usernameStatus.classList.add('hidden');
+                        usernameError.classList.remove('hidden');
+                        usernameHint.classList.add('hidden');
+                        registerBtn.disabled = true;
+                    } else {
+                        // 用户名可用
+                        usernameStatus.classList.remove('hidden');
+                        usernameError.classList.add('hidden');
+                        usernameHint.classList.add('hidden');
+                        registerBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('检查用户名失败:', error);
+                }
+            }
+
+            // 标签选择
+            let selectedBadge = 'Bonk爱好者';
+            badgeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // 移除其他按钮的选中状态
+                    badgeButtons.forEach(b => {
+                        b.classList.remove('bg-bonk-orange', 'text-white');
+                        b.classList.add('bg-gray-800', 'hover:bg-gray-700');
+                    });
+                    
+                    // 添加当前按钮的选中状态
+                    btn.classList.remove('bg-gray-800', 'hover:bg-gray-700');
+                    btn.classList.add('bg-bonk-orange', 'text-white');
+                    
+                    selectedBadge = btn.dataset.badge;
+                });
+            });
+
+            // 注册表单提交
+            userRegisterForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+                const confirmPassword = confirmPasswordInput.value;
+                const avatarSrc = avatarPreview.querySelector('img')?.src;
+                
+                if (!username || username.length < 2) {
+                    showToast('请输入有效的用户名', 'error');
+                    return;
+                }
+                
+                if (!password || password.length < 6) {
+                    showToast('密码长度至少6位', 'error');
+                    return;
+                }
+                
+                if (password !== confirmPassword) {
+                    showToast('两次输入的密码不一致', 'error');
+                    return;
+                }
+                
+                if (!avatarSrc) {
+                    showToast('请上传头像', 'error');
+                    return;
+                }
+                
+                // 再次检查用户名可用性
+                try {
+                    const usernameRef = ref(database, `usernames/${username}`);
+                    const snapshot = await get(usernameRef);
+                    
+                    if (snapshot.exists()) {
+                        showToast('用户名已被使用，请选择其他用户名', 'error');
+                        return;
+                    }
+                    
+                    // 开始注册
+                    await performUserRegistration(username, password, avatarSrc, selectedBadge);
+                    
+                } catch (error) {
+                    console.error('注册失败:', error);
+                    showToast('注册失败，请重试', 'error');
+                }
+            });
+
+            // 执行用户注册
+            async function performUserRegistration(username, password, avatarSrc, badge) {
+                // 显示加载状态
+                registerBtn.disabled = true;
+                registerBtnText.classList.add('hidden');
+                registerBtnLoading.classList.remove('hidden');
+                
+                try {
+                    // 先进行匿名登录
+                    const authResult = await signInAnonymously(auth);
+                    const userId = authResult.user.uid;
+                    
+                    // 哈希密码
+                    const passwordHash = await hashPassword(password);
+                    
+                    // 保存用户名到数据库
+                    const usernameRef = ref(database, `usernames/${username}`);
+                    await set(usernameRef, {
+                        userId: userId,
+                        createdAt: Date.now()
+                    });
+                    
+                    // 保存用户资料（包含密码哈希）
+                    const userProfileRef = ref(database, `userProfiles/${userId}`);
+                    await set(userProfileRef, {
+                        username: username,
+                        avatar: avatarSrc,
+                        badge: badge,
+                        passwordHash: passwordHash,
+                        createdAt: Date.now(),
+                        lastSeen: Date.now()
+                    });
+                    
+                    // 更新本地用户资料
+                    userProfiles[userId] = {
+                        name: username,
+                        avatar: avatarSrc,
+                        badge: badge
+                    };
+                    
+                    console.log('用户注册成功:', userId);
+                    hideUserRegisterModal();
+                    showToast('注册成功！欢迎来到Bonk聊天', 'success');
+                    
+                    // 立即更新UI显示
+                    updateLoginUI(true);
+                    
+                    // 更新用户状态为在线
+                    updateUserStatus('online');
+                    
+                } catch (error) {
+                    console.error('用户注册失败:', error);
+                    showToast('注册失败，请重试', 'error');
+                    
+                    // 恢复按钮状态
+                    registerBtn.disabled = false;
+                    registerBtnText.classList.remove('hidden');
+                    registerBtnLoading.classList.add('hidden');
+                }
+            }
+
+            // 钱包连接功能
+            connectWalletBtn.addEventListener('click', () => {
+                try {
+                    // 显示连接中状态
+                    connectWalletBtn.disabled = true;
+                    connectWalletBtn.innerHTML = `
+                        <div class="w-4 h-4 border-2 border-bonk-orange border-t-transparent rounded-full animate-spin"></div>
+                        <span>连接中...</span>
+                    `;
+                    
+                    // 调用钱包连接
+                    window.connectSolanaWallet().then(() => {
+                        // 连接成功后的处理在walletConnected事件中
+                    }).catch((error) => {
+                        console.error('钱包连接失败:', error);
+                        const errorMessage = error && error.message ? validateInput(error.message, 100) : '未知错误';
+                        showToast('钱包连接失败: ' + errorMessage, 'error');
+                        // 恢复按钮状态
+                        connectWalletBtn.disabled = false;
+                        connectWalletBtn.innerHTML = `
+                            <i class="fa fa-wallet"></i>
+                            <span>连接钱包</span>
+                        `;
+                    });
+                } catch (error) {
+                    console.error('钱包连接初始化失败:', error);
+                    showToast('钱包连接初始化失败', 'error');
+                    connectWalletBtn.disabled = false;
+                    connectWalletBtn.innerHTML = `
+                        <i class="fa fa-wallet"></i>
+                        <span>连接钱包</span>
+                    `;
+                }
+        });
+
+        // 表情面板切换
+        emojiBtn.addEventListener('click', () => {
+            emojiPanel.classList.toggle('hidden');
+        });
+
+        // 点击表情插入到输入框
+        emojiButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                messageInput.value += btn.textContent;
+                messageInput.focus();
+                    updateTypingStatus(true);
+            });
+        });
+
+        // 自动调整输入框高度
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 80) + 'px';
+                updateTypingStatus(true);
+                
+                // 清除之前的定时器
+                if (typingTimeout) {
+                    clearTimeout(typingTimeout);
+                }
+                
+                // 3秒后停止输入状态
+                typingTimeout = setTimeout(() => {
+                    updateTypingStatus(false);
+                }, 3000);
+        });
+
+        // 发送消息功能
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+            // 点击页面其他地方关闭表情面板
+            document.addEventListener('click', (e) => {
+                if (!emojiBtn.contains(e.target) && !emojiPanel.contains(e.target)) {
+                    emojiPanel.classList.add('hidden');
+                }
+            });
+
+            // 图片上传功能
+            imageUploadBtn.addEventListener('click', () => {
+                imageInput.click();
+            });
+
+            imageInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (!currentUser) {
+                        showToast('请先登录后再上传图片', 'warning');
+                        showLoginModal();
+                        imageInput.value = '';
+                        return;
+                    }
+                    
+                    try {
+                        validateImageFile(file);
+                        uploadImage(file);
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    } finally {
+                        imageInput.value = ''; // 清空input
+                    }
+                }
+            });
+
+            // 图片模态框功能
+            window.openImageModal = function(imageUrl) {
+                const modal = document.getElementById('imageModal');
+                const modalImage = document.getElementById('modalImage');
+                modalImage.src = imageUrl;
+                modal.classList.remove('hidden');
+            };
+
+            document.getElementById('closeImageModal').addEventListener('click', () => {
+                document.getElementById('imageModal').classList.add('hidden');
+            });
+
+            document.getElementById('imageModal').addEventListener('click', (e) => {
+                if (e.target.id === 'imageModal') {
+                    e.target.classList.add('hidden');
+                }
+            });
+
+            // 页面卸载时更新状态
+            window.addEventListener('beforeunload', () => {
+                updateUserStatus('offline');
+            });
+
+        // 初始化价格图表
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(24).fill(''),
+                datasets: [{
+                    label: 'Bonk Price',
+                    data: [0.000051, 0.000053, 0.000052, 0.000050, 0.000049, 0.000050, 0.000052, 0.000054, 
+                           0.000055, 0.000057, 0.000056, 0.000055, 0.000057, 0.000059, 0.000060, 0.000059,
+                           0.000061, 0.000062, 0.000063, 0.000062, 0.000061, 0.000062, 0.000063, 0.000062],
+                    borderColor: '#FF9500',
+                    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        display: false
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+
+            // 启动应用
+            initializeAuth();
+            setupPasswordToggles();
+            
+            // 防止页面整体滚动
+            document.addEventListener('wheel', function(e) {
+                // 如果滚动事件发生在消息区域之外，阻止默认行为
+                if (!messageArea.contains(e.target) && !e.target.closest('#messageArea')) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            // 确保消息区域在页面加载时滚动到底部
+            setTimeout(() => {
+                if (messageArea) {
+                    messageArea.scrollTop = messageArea.scrollHeight;
+                }
+            }, 100);
+            
+            // 监听消息区域的滚动事件
+            messageArea.addEventListener('scroll', () => {
+                const { scrollTop, scrollHeight, clientHeight } = messageArea;
+                const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px容差
+                shouldAutoScroll = isAtBottom;
+                
+                // 显示或隐藏滚动到底部按钮
+                if (!isAtBottom && scrollHeight > clientHeight) {
+                    scrollToBottomBtn.classList.remove('opacity-0', 'pointer-events-none');
+                    scrollToBottomBtn.classList.add('opacity-100', 'pointer-events-auto');
+                } else {
+                    scrollToBottomBtn.classList.add('opacity-0', 'pointer-events-none');
+                    scrollToBottomBtn.classList.remove('opacity-100', 'pointer-events-auto');
+                }
+            });
+            
+            // 滚动到底部按钮点击事件
+            scrollToBottomBtn.addEventListener('click', () => {
+                messageArea.scrollTo({
+                    top: messageArea.scrollHeight,
+                    behavior: 'smooth'
+                });
+                shouldAutoScroll = true;
+            });
+
+            // 左侧菜单栏"正在开发"提示
+            document.querySelectorAll('aside#sidebar nav a').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showToast('该功能正在开发中，敬请期待！', 'info');
+                });
+            });
+        }
+
+        // Telegram风格滚动到底部按钮动态定位（修正版，right/bottom）
+        function updateScrollBtnPosition() {
+            const messageArea = document.getElementById('messageArea');
+            const scrollBtn = document.getElementById('scrollToBottomBtn');
+            if (!messageArea || !scrollBtn) return;
+            const rect = messageArea.getBoundingClientRect();
+            // 让按钮吸附在消息区右下角，内缩16px
+            scrollBtn.style.position = 'fixed';
+            scrollBtn.style.left = '';
+            scrollBtn.style.top = '';
+            scrollBtn.style.right = (window.innerWidth - rect.right + 16) + 'px';
+            scrollBtn.style.bottom = (window.innerHeight - rect.bottom + 16) + 'px';
+            // 如果消息区不可见则隐藏按钮
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                scrollBtn.style.display = 'none';
+            } else {
+                scrollBtn.style.display = '';
+            }
+        }
+        window.addEventListener('resize', updateScrollBtnPosition);
+        window.addEventListener('scroll', updateScrollBtnPosition);
+        setTimeout(updateScrollBtnPosition, 300);
+
+
+    </script>
+    <script src="wallet-connect.js"></script>
+</body>
+</html>
