@@ -928,11 +928,19 @@
                         updateUserStatus('online');
                         hideLoadingIndicator();
                     } else {
-                        // 未登录也初始化聊天（只读）
-                        currentUser = null;
-                        initializeChat();
-                        hideLoadingIndicator();
-                        updateLoginUI(false);
+                        // 检查是否有钱包连接
+                        const walletAddress = window.getSolanaWalletAddress();
+                        if (walletAddress) {
+                            // 钱包已连接，尝试加载钱包用户资料
+                            const walletUserId = `wallet_${walletAddress}`;
+                            loadUserProfile(walletUserId);
+                        } else {
+                            // 未登录也初始化聊天（只读）
+                            currentUser = null;
+                            initializeChat();
+                            hideLoadingIndicator();
+                            updateLoginUI(false);
+                        }
                     }
                 });
             }
@@ -952,13 +960,24 @@
                         };
                         console.log('用户资料加载成功:', profile);
                         
+                        // 设置当前用户
+                        currentUser = { uid: userId };
+                        
                         // 更新UI显示
                         updateLoginUI(true);
                         
                         // 更新用户状态为在线
                         updateUserStatus('online');
+                        
+                        // 初始化聊天
+                        initializeChat();
+                        hideLoadingIndicator();
                     } else {
                         console.log('用户资料不存在，需要注册');
+                        // 如果是钱包用户但资料不存在，显示注册弹窗
+                        if (userId.startsWith('wallet_')) {
+                            showUserRegisterModal();
+                        }
                     }
                 } catch (error) {
                     console.error('加载用户资料失败:', error);
@@ -1205,6 +1224,11 @@
                     userBadge: userProfileData?.badge || 'Bonk爱好者',
                     timestamp: Date.now()
                 };
+                
+                // 如果是钱包用户，添加钱包地址信息
+                if (currentUser.uid.startsWith('wallet_')) {
+                    messageData.walletAddress = currentUser.uid.replace('wallet_', '');
+                }
 
                 // 推送到Firebase
                 push(messagesRef, messageData)
@@ -1226,12 +1250,19 @@
                 if (!currentUser) return;
                 
                 const userProfileData = userProfiles[currentUser.uid];
-                set(ref(database, `userStatus/${currentUser.uid}`), {
+                const statusData = {
                     status: status,
                     lastSeen: Date.now(),
                     userName: userProfileData?.name || 'Bonk用户',
                     userAvatar: userProfileData?.avatar || 'https://picsum.photos/id/1012/200'
-                });
+                };
+                
+                // 如果是钱包用户，添加钱包地址信息
+                if (currentUser.uid.startsWith('wallet_')) {
+                    statusData.walletAddress = currentUser.uid.replace('wallet_', '');
+                }
+                
+                set(ref(database, `userStatus/${currentUser.uid}`), statusData);
             }
 
             // 更新在线用户列表
@@ -1316,6 +1347,11 @@
                     userBadge: userProfileData?.badge || 'Bonk爱好者',
                     timestamp: Date.now()
                 };
+                
+                // 如果是钱包用户，添加钱包地址信息
+                if (currentUser.uid.startsWith('wallet_')) {
+                    messageData.walletAddress = currentUser.uid.replace('wallet_', '');
+                }
 
                 push(messagesRef, messageData)
                     .catch((error) => {
@@ -1331,10 +1367,17 @@
                 const userProfileData = userProfiles[currentUser.uid];
                 if (typing) {
                     isTyping = true;
-                    set(ref(database, `typing/${currentUser.uid}`), {
+                    const typingData = {
                         userName: userProfileData?.name || 'Bonk用户',
                         timestamp: Date.now()
-                    });
+                    };
+                    
+                    // 如果是钱包用户，添加钱包地址信息
+                    if (currentUser.uid.startsWith('wallet_')) {
+                        typingData.walletAddress = currentUser.uid.replace('wallet_', '');
+                    }
+                    
+                    set(ref(database, `typing/${currentUser.uid}`), typingData);
                 } else {
                     isTyping = false;
                     set(ref(database, `typing/${currentUser.uid}`), null);
@@ -1374,11 +1417,18 @@
             function addMessageReaction(messageId, reaction) {
                 if (!currentUser) return;
                 
-                set(ref(database, `messages/${messageId}/reactions/${currentUser.uid}`), {
+                const reactionData = {
                     reaction: reaction,
                     timestamp: Date.now(),
                     userName: userProfiles[currentUser.uid]?.name || 'Bonk用户'
-                });
+                };
+                
+                // 如果是钱包用户，添加钱包地址信息
+                if (currentUser.uid.startsWith('wallet_')) {
+                    reactionData.walletAddress = currentUser.uid.replace('wallet_', '');
+                }
+                
+                set(ref(database, `messages/${messageId}/reactions/${currentUser.uid}`), reactionData);
             }
 
             // 获取在线用户数量
@@ -1675,9 +1725,9 @@
 
             // 监听钱包连接事件
             window.addEventListener('walletConnected', (e) => {
-            connectWalletBtn.classList.add('hidden');
-            walletConnected.classList.remove('hidden');
-            
+                connectWalletBtn.classList.add('hidden');
+                walletConnected.classList.remove('hidden');
+                
                 const address = e.detail.address;
                 const walletType = e.detail.walletType || 'Solana';
                 const shortAddress = address.slice(0,6) + '...' + address.slice(-4);
@@ -1685,8 +1735,12 @@
                 walletConnected.querySelector('p.text-sm').textContent = `${walletType}钱包已连接`;
                 walletConnected.querySelector('p.text-xs').textContent = shortAddress;
                 
-            walletToast.classList.remove('hidden');
+                walletToast.classList.remove('hidden');
                 setTimeout(() => { walletToast.classList.add('hidden'); }, 3000);
+                
+                // 钱包连接成功后，自动进入用户注册流程
+                hideLoginModal();
+                showUserRegisterModal();
             });
 
             // 断开钱包连接
@@ -1849,6 +1903,19 @@
 
             // 显示用户注册弹窗
             function showUserRegisterModal() {
+                // 检查是否为钱包用户
+                const walletAddress = window.getSolanaWalletAddress && window.getSolanaWalletAddress();
+                const isWalletUser = !!walletAddress;
+                // 控制密码相关输入框显示
+                const passwordDiv = document.getElementById('passwordInput').closest('div');
+                const confirmPasswordDiv = document.getElementById('confirmPasswordInput').closest('div');
+                if (isWalletUser) {
+                    passwordDiv.style.display = 'none';
+                    confirmPasswordDiv.style.display = 'none';
+                } else {
+                    passwordDiv.style.display = '';
+                    confirmPasswordDiv.style.display = '';
+                }
                 userRegisterModal.classList.remove('hidden');
                 setTimeout(() => {
                     userRegisterModalContent.classList.remove('scale-95', 'opacity-0');
@@ -2010,45 +2077,43 @@
             // 注册表单提交
             userRegisterForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                
                 const username = usernameInput.value.trim();
-                const password = passwordInput.value;
-                const confirmPassword = confirmPasswordInput.value;
                 const avatarSrc = avatarPreview.querySelector('img')?.src;
-                
+                const walletAddress = window.getSolanaWalletAddress && window.getSolanaWalletAddress();
+                const isWalletUser = !!walletAddress;
+                let password = '', confirmPassword = '';
+                if (!isWalletUser) {
+                    password = passwordInput.value;
+                    confirmPassword = confirmPasswordInput.value;
+                }
                 if (!username || username.length < 2) {
                     showToast('请输入有效的用户名', 'error');
                     return;
                 }
-                
-                if (!password || password.length < 6) {
-                    showToast('密码长度至少6位', 'error');
-                    return;
+                if (!isWalletUser) {
+                    if (!password || password.length < 6) {
+                        showToast('密码长度至少6位', 'error');
+                        return;
+                    }
+                    if (password !== confirmPassword) {
+                        showToast('两次输入的密码不一致', 'error');
+                        return;
+                    }
                 }
-                
-                if (password !== confirmPassword) {
-                    showToast('两次输入的密码不一致', 'error');
-                    return;
-                }
-                
                 if (!avatarSrc) {
                     showToast('请上传头像', 'error');
                     return;
                 }
-                
                 // 再次检查用户名可用性
                 try {
                     const usernameRef = ref(database, `usernames/${username}`);
                     const snapshot = await get(usernameRef);
-                    
                     if (snapshot.exists()) {
                         showToast('用户名已被使用，请选择其他用户名', 'error');
                         return;
                     }
-                    
                     // 开始注册
-                    await performUserRegistration(username, password, avatarSrc, selectedBadge);
-                    
+                    await performUserRegistration(username, password, avatarSrc, selectedBadge, isWalletUser);
                 } catch (error) {
                     console.error('注册失败:', error);
                     showToast('注册失败，请重试', 'error');
@@ -2056,60 +2121,57 @@
             });
 
             // 执行用户注册
-            async function performUserRegistration(username, password, avatarSrc, badge) {
+            async function performUserRegistration(username, password, avatarSrc, badge, isWalletUser = false) {
                 // 显示加载状态
                 registerBtn.disabled = true;
                 registerBtnText.classList.add('hidden');
                 registerBtnLoading.classList.remove('hidden');
-                
                 try {
-                    // 先进行匿名登录
-                    const authResult = await signInAnonymously(auth);
-                    const userId = authResult.user.uid;
-                    
-                    // 哈希密码
-                    const passwordHash = await hashPassword(password);
-                    
+                    let userId;
+                    const walletAddress = window.getSolanaWalletAddress && window.getSolanaWalletAddress();
+                    if (isWalletUser && walletAddress) {
+                        userId = `wallet_${walletAddress}`;
+                        console.log('钱包用户注册:', userId);
+                    } else {
+                        const authResult = await signInAnonymously(auth);
+                        userId = authResult.user.uid;
+                        console.log('匿名用户注册:', userId);
+                    }
                     // 保存用户名到数据库
                     const usernameRef = ref(database, `usernames/${username}`);
                     await set(usernameRef, {
                         userId: userId,
                         createdAt: Date.now()
                     });
-                    
-                    // 保存用户资料（包含密码哈希）
+                    // 保存用户资料
                     const userProfileRef = ref(database, `userProfiles/${userId}`);
-                    await set(userProfileRef, {
+                    const profileData = {
                         username: username,
                         avatar: avatarSrc,
                         badge: badge,
-                        passwordHash: passwordHash,
                         createdAt: Date.now(),
                         lastSeen: Date.now()
-                    });
-                    
-                    // 更新本地用户资料
+                    };
+                    if (isWalletUser && walletAddress) {
+                        profileData.walletAddress = walletAddress;
+                    } else {
+                        // 只有非钱包用户才存密码哈希
+                        profileData.passwordHash = await hashPassword(password);
+                    }
+                    await set(userProfileRef, profileData);
                     userProfiles[userId] = {
                         name: username,
                         avatar: avatarSrc,
                         badge: badge
                     };
-                    
                     console.log('用户注册成功:', userId);
                     hideUserRegisterModal();
                     showToast('注册成功！欢迎来到Bonk聊天', 'success');
-                    
-                    // 立即更新UI显示
                     updateLoginUI(true);
-                    
-                    // 更新用户状态为在线
                     updateUserStatus('online');
-                    
                 } catch (error) {
                     console.error('用户注册失败:', error);
                     showToast('注册失败，请重试', 'error');
-                    
-                    // 恢复按钮状态
                     registerBtn.disabled = false;
                     registerBtnText.classList.remove('hidden');
                     registerBtnLoading.classList.add('hidden');
