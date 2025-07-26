@@ -1620,7 +1620,7 @@
                 const borderClass = isCurrentUser ? 'border-bonk-orange' : 'border-gray-700';
                 
                 li.innerHTML = `
-                    <a href="#" class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors">
+                    <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer member-clickable" data-user-id="${member.userId}">
                         <div class="relative">
                             <img src="${member.avatar || 'https://picsum.photos/id/1012/200'}" 
                                 alt="${member.username || '用户'}的头像" 
@@ -1632,8 +1632,28 @@
                             <p class="text-sm font-medium truncate">${member.username || 'Bonk用户'}</p>
                             <p class="text-xs text-gray-400 truncate member-badge" data-user-id="${member.userId}">${member.badge || 'Bonk爱好者'}</p>
                         </div>
-                    </a>
+                        ${!isCurrentUser ? `
+                        <button class="member-actions-btn p-1 rounded-full hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100" data-user-id="${member.userId}">
+                            <i class="fa fa-ellipsis-v text-gray-400 text-xs"></i>
+                        </button>
+                        ` : ''}
+                    </div>
                 `;
+                
+                // 添加点击事件
+                const clickableElement = li.querySelector('.member-clickable');
+                clickableElement.addEventListener('click', () => {
+                    showUserActionsModal(member);
+                });
+                
+                // 添加操作按钮事件
+                const actionsBtn = li.querySelector('.member-actions-btn');
+                if (actionsBtn) {
+                    actionsBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showUserActionsModal(member);
+                    });
+                }
                 
                 return li;
             }
@@ -1819,6 +1839,9 @@
                     
                     // 更新用户状态为在线
                     updateUserStatus('online');
+                    
+                    // 加载好友列表
+                    loadFriendsList();
                     
                 } catch (error) {
                     throw error;
@@ -2908,7 +2931,447 @@
             });
         });
 
+        // 好友系统和私聊功能
+        let selectedUser = null;
+        let currentPrivateChat = null;
+        let friendsList = [];
+        
+        // 显示用户操作弹窗
+        function showUserActionsModal(user) {
+            selectedUser = user;
+            
+            // 更新用户信息
+            document.getElementById('actionUserAvatar').src = user.avatar || 'https://picsum.photos/id/1012/200';
+            document.getElementById('actionUserName').textContent = user.username || 'Bonk用户';
+            document.getElementById('actionUserBadge').textContent = user.badge || 'Bonk爱好者';
+            
+            // 检查是否已经是好友
+            const isFriend = friendsList.some(friend => friend.userId === user.userId);
+            const addFriendBtn = document.getElementById('addFriendBtn');
+            if (isFriend) {
+                addFriendBtn.innerHTML = '<i class="fa fa-user-check"></i><span>已是好友</span>';
+                addFriendBtn.disabled = true;
+                addFriendBtn.classList.add('opacity-50');
+            } else {
+                addFriendBtn.innerHTML = '<i class="fa fa-user-plus"></i><span>添加好友</span>';
+                addFriendBtn.disabled = false;
+                addFriendBtn.classList.remove('opacity-50');
+            }
+            
+            // 显示弹窗
+            const modal = document.getElementById('userActionsModal');
+            const content = document.getElementById('userActionsModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        // 隐藏用户操作弹窗
+        function hideUserActionsModal() {
+            const modal = document.getElementById('userActionsModal');
+            const content = document.getElementById('userActionsModalContent');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                selectedUser = null;
+            }, 300);
+        }
+        
+        // 显示私聊界面
+        function showPrivateChatModal(user) {
+            selectedUser = user;
+            currentPrivateChat = user.userId;
+            
+            // 更新私聊界面用户信息
+            document.getElementById('privateChatUserAvatar').src = user.avatar || 'https://picsum.photos/id/1012/200';
+            document.getElementById('privateChatUserName').textContent = user.username || 'Bonk用户';
+            
+            // 清空消息区域
+            document.getElementById('privateChatMessages').innerHTML = '';
+            
+            // 加载私聊消息
+            loadPrivateChatMessages(user.userId);
+            
+            // 显示弹窗
+            const modal = document.getElementById('privateChatModal');
+            const content = document.getElementById('privateChatModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        // 隐藏私聊界面
+        function hidePrivateChatModal() {
+            const modal = document.getElementById('privateChatModal');
+            const content = document.getElementById('privateChatModalContent');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                selectedUser = null;
+                currentPrivateChat = null;
+            }, 300);
+        }
+        
+        // 添加好友
+        async function addFriend(user) {
+            if (!currentUser) {
+                showToast('请先登录', 'warning');
+                return;
+            }
+            
+            try {
+                const friendData = {
+                    userId: user.userId,
+                    username: user.username,
+                    avatar: user.avatar,
+                    badge: user.badge,
+                    addedAt: Date.now()
+                };
+                
+                // 保存到Firebase
+                const friendRef = ref(database, `friends/${currentUser.uid}/${user.userId}`);
+                await set(friendRef, friendData);
+                
+                // 更新本地好友列表
+                friendsList.push(friendData);
+                
+                showToast(`已添加 ${user.username} 为好友`, 'success');
+                hideUserActionsModal();
+                
+            } catch (error) {
+                console.error('添加好友失败:', error);
+                showToast('添加好友失败，请重试', 'error');
+            }
+        }
+        
+        // 加载好友列表
+        async function loadFriendsList() {
+            if (!currentUser) return;
+            
+            try {
+                const friendsRef = ref(database, `friends/${currentUser.uid}`);
+                const snapshot = await get(friendsRef);
+                
+                if (snapshot.exists()) {
+                    friendsList = Object.values(snapshot.val());
+                } else {
+                    friendsList = [];
+                }
+                
+                console.log('好友列表加载完成:', friendsList);
+                
+            } catch (error) {
+                console.error('加载好友列表失败:', error);
+                friendsList = [];
+            }
+        }
+        
+        // 加载私聊消息
+        async function loadPrivateChatMessages(targetUserId) {
+            if (!currentUser) return;
+            
+            try {
+                const chatId = [currentUser.uid, targetUserId].sort().join('_');
+                const messagesRef = ref(database, `privateMessages/${chatId}`);
+                
+                onValue(messagesRef, (snapshot) => {
+                    const messages = [];
+                    if (snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            messages.push({
+                                id: childSnapshot.key,
+                                ...childSnapshot.val()
+                            });
+                        });
+                    }
+                    
+                    // 按时间排序
+                    messages.sort((a, b) => a.timestamp - b.timestamp);
+                    displayPrivateChatMessages(messages);
+                });
+                
+            } catch (error) {
+                console.error('加载私聊消息失败:', error);
+            }
+        }
+        
+        // 显示私聊消息
+        function displayPrivateChatMessages(messages) {
+            const messagesContainer = document.getElementById('privateChatMessages');
+            messagesContainer.innerHTML = '';
+            
+            messages.forEach(message => {
+                const messageElement = createPrivateMessageElement(message);
+                messagesContainer.appendChild(messageElement);
+            });
+            
+            // 滚动到底部
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // 创建私聊消息元素
+        function createPrivateMessageElement(message) {
+            const isOwnMessage = message.senderId === currentUser.uid;
+            const timeString = new Date(message.timestamp).toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start space-x-3 ${isOwnMessage ? 'justify-end' : ''}`;
+            
+            if (!isOwnMessage) {
+                // 对方消息：头像 + 内容
+                messageDiv.innerHTML = `
+                    <div class="relative">
+                        <img src="${message.senderAvatar || 'https://picsum.photos/id/1012/200'}" 
+                            alt="头像" class="w-8 h-8 rounded-full object-cover">
+                    </div>
+                    <div class="max-w-[70%]">
+                        <div class="bg-gray-700 rounded-2xl rounded-tl-none px-3 py-2 text-sm">
+                            ${sanitizeHTML(message.text)}
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">${timeString}</div>
+                    </div>
+                `;
+            } else {
+                // 自己的消息：内容 + 头像
+                messageDiv.innerHTML = `
+                    <div class="max-w-[70%]">
+                        <div class="bg-bonk-orange rounded-2xl rounded-tr-none px-3 py-2 text-sm text-white">
+                            ${sanitizeHTML(message.text)}
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1 text-right">${timeString}</div>
+                    </div>
+                    <div class="relative">
+                        <img src="${message.senderAvatar || 'https://picsum.photos/id/1012/200'}" 
+                            alt="头像" class="w-8 h-8 rounded-full object-cover">
+                    </div>
+                `;
+            }
+            
+            return messageDiv;
+        }
+        
+        // 发送私聊消息
+        async function sendPrivateMessage(text) {
+            if (!currentUser || !selectedUser || !text.trim()) return;
+            
+            try {
+                const chatId = [currentUser.uid, selectedUser.userId].sort().join('_');
+                const messageData = {
+                    text: text.trim(),
+                    senderId: currentUser.uid,
+                    senderName: userProfiles[currentUser.uid]?.name || 'Bonk用户',
+                    senderAvatar: userProfiles[currentUser.uid]?.avatar || 'https://picsum.photos/id/1012/200',
+                    timestamp: Date.now()
+                };
+                
+                const messagesRef = ref(database, `privateMessages/${chatId}`);
+                await push(messagesRef, messageData);
+                
+                // 清空输入框
+                document.getElementById('privateChatInput').value = '';
+                
+            } catch (error) {
+                console.error('发送私聊消息失败:', error);
+                showToast('发送失败，请重试', 'error');
+            }
+        }
+        
+        // 事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 用户操作弹窗事件
+            document.getElementById('closeUserActionsModal').addEventListener('click', hideUserActionsModal);
+            document.getElementById('userActionsModal').addEventListener('click', (e) => {
+                if (e.target.id === 'userActionsModal') {
+                    hideUserActionsModal();
+                }
+            });
+            
+            // 添加好友按钮
+            document.getElementById('addFriendBtn').addEventListener('click', () => {
+                if (selectedUser) {
+                    addFriend(selectedUser);
+                }
+            });
+            
+            // 发起私聊按钮
+            document.getElementById('startPrivateChatBtn').addEventListener('click', () => {
+                if (selectedUser) {
+                    hideUserActionsModal();
+                    showPrivateChatModal(selectedUser);
+                }
+            });
+            
+            // 查看资料按钮
+            document.getElementById('viewProfileBtn').addEventListener('click', () => {
+                if (selectedUser) {
+                    showToast('查看资料功能开发中...', 'info');
+                }
+            });
+            
+            // 私聊界面事件
+            document.getElementById('closePrivateChatModal').addEventListener('click', hidePrivateChatModal);
+            document.getElementById('privateChatModal').addEventListener('click', (e) => {
+                if (e.target.id === 'privateChatModal') {
+                    hidePrivateChatModal();
+                }
+            });
+            
+            // 私聊发送消息
+            document.getElementById('privateChatSendBtn').addEventListener('click', () => {
+                const text = document.getElementById('privateChatInput').value;
+                sendPrivateMessage(text);
+            });
+            
+            // 私聊输入框回车发送
+            document.getElementById('privateChatInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const text = e.target.value;
+                    sendPrivateMessage(text);
+                }
+            });
+            
+            // 私聊输入框自动调整高度
+            document.getElementById('privateChatInput').addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+            });
+        });
+        
+        // 在用户登录后加载好友列表
+        function onUserLogin() {
+            loadFriendsList();
+        }
     </script>
+    
+    <!-- 用户操作弹窗 -->
+    <div id="userActionsModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl p-6 max-w-sm w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="userActionsModalContent">
+            <!-- 关闭按钮 -->
+            <button id="closeUserActionsModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            
+            <!-- 用户信息 -->
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden">
+                    <img id="actionUserAvatar" src="" alt="用户头像" class="w-full h-full object-cover">
+                </div>
+                <h3 id="actionUserName" class="text-lg font-bold text-white mb-1"></h3>
+                <p id="actionUserBadge" class="text-sm text-gray-400"></p>
+                <div id="actionUserStatus" class="inline-block mt-2 px-2 py-1 rounded-full text-xs"></div>
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="space-y-3">
+                <button id="addFriendBtn" class="w-full bg-bonk-orange text-white rounded-lg py-3 px-4 font-medium hover:bg-bonk-dark transition-colors flex items-center justify-center space-x-2">
+                    <i class="fa fa-user-plus"></i>
+                    <span>添加好友</span>
+                </button>
+                
+                <button id="startPrivateChatBtn" class="w-full bg-solana-blue text-white rounded-lg py-3 px-4 font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                    <i class="fa fa-comments"></i>
+                    <span>发起私聊</span>
+                </button>
+                
+                <button id="viewProfileBtn" class="w-full bg-gray-700 text-white rounded-lg py-3 px-4 font-medium hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2">
+                    <i class="fa fa-user"></i>
+                    <span>查看资料</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 私聊界面 -->
+    <div id="privateChatModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl w-full max-w-4xl h-[80vh] mx-4 flex flex-col transform transition-all duration-300 scale-95 opacity-0" id="privateChatModalContent">
+            <!-- 私聊头部 -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <button id="closePrivateChatModal" class="text-gray-400 hover:text-white transition-colors">
+                        <i class="fa fa-arrow-left text-xl"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-full overflow-hidden">
+                        <img id="privateChatUserAvatar" src="" alt="用户头像" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h3 id="privateChatUserName" class="font-bold text-white"></h3>
+                        <p id="privateChatUserStatus" class="text-xs text-gray-400">在线</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="privateChatVoiceCall" class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-phone text-gray-300"></i>
+                    </button>
+                    <button id="privateChatVideoCall" class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-video text-gray-300"></i>
+                    </button>
+                    <button id="privateChatMore" class="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                        <i class="fa fa-ellipsis-v text-gray-300"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 私聊消息区域 -->
+            <div id="privateChatMessages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- 消息将在这里动态添加 -->
+            </div>
+            
+            <!-- 私聊输入区域 -->
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex items-end space-x-3">
+                    <div class="flex-1 bg-gray-800 rounded-xl p-3">
+                        <textarea id="privateChatInput" 
+                            class="w-full bg-transparent text-white placeholder-gray-400 resize-none outline-none"
+                            placeholder="输入消息..." 
+                            rows="1"
+                            maxlength="1000"></textarea>
+                    </div>
+                    <button id="privateChatSendBtn" class="bg-bonk-orange text-white p-3 rounded-xl hover:bg-bonk-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 好友列表弹窗 -->
+    <div id="friendsListModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-chat-bg rounded-2xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="friendsListModalContent">
+            <!-- 关闭按钮 -->
+            <button id="closeFriendsListModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            
+            <!-- 弹窗头部 -->
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-white mb-2">我的好友</h2>
+                <p class="text-gray-400">管理你的好友列表</p>
+            </div>
+            
+            <!-- 好友列表 -->
+            <div id="friendsList" class="space-y-3 max-h-64 overflow-y-auto">
+                <!-- 好友将在这里动态添加 -->
+            </div>
+            
+            <!-- 空状态 -->
+            <div id="friendsEmptyState" class="text-center py-8 hidden">
+                <i class="fa fa-users text-gray-400 text-3xl mb-3"></i>
+                <p class="text-gray-400">暂无好友</p>
+                <p class="text-xs text-gray-500 mt-1">点击用户头像添加好友</p>
+            </div>
+        </div>
+    </div>
+    
     <script src="wallet-connect.js"></script>
 </body>
 </html>
