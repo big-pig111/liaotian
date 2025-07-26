@@ -189,7 +189,6 @@
                         <a href="#" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors">
                             <i class="fa fa-comments text-xl w-6 text-center"></i>
                             <span>聊天列表</span>
-                            <span class="ml-auto bg-bonk-orange text-white text-xs px-2 py-1 rounded-full">5</span>
                         </a>
                     </li>
                     <li>
@@ -929,7 +928,9 @@
                         updateUserStatus('online');
                         hideLoadingIndicator();
                     } else {
-                        // 不自动登录，等待用户手动登录
+                        // 未登录也初始化聊天（只读）
+                        currentUser = null;
+                        initializeChat();
                         hideLoadingIndicator();
                         updateLoginUI(false);
                     }
@@ -1090,7 +1091,7 @@
 
             // 创建消息元素
             function createMessageElement(message) {
-                const isOwnMessage = message.userId === currentUser.uid;
+                const isOwnMessage = currentUser && message.userId === currentUser.uid;
                 const timeString = new Date(message.timestamp).toLocaleTimeString('zh-CN', {
                     hour: '2-digit',
                     minute: '2-digit'
