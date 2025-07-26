@@ -403,26 +403,117 @@
                 </ul>
             </div>
             
-            <!-- Bonk实时数据 -->
+            <!-- 代币实时数据 -->
             <div class="p-4 border-t border-gray-700">
-                <h3 class="font-bold mb-3">Bonk实时数据</h3>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold" id="tokenDataTitle">Bonk实时数据</h3>
+                    <button id="changeTokenBtn" class="text-xs text-bonk-orange hover:text-bonk-light transition-colors">
+                        <i class="fa fa-cog"></i> 切换代币
+                    </button>
+                </div>
                 <div class="bg-gray-800 rounded-xl p-3">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-sm text-gray-400">当前价格</span>
-                        <span class="text-sm font-semibold">$0.00006241</span>
+                        <span class="text-sm font-semibold" id="currentPrice">$0.00006241</span>
                     </div>
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-sm text-gray-400">24h 涨跌幅</span>
-                        <span class="text-sm font-semibold text-green-500">+12.34%</span>
+                        <span class="text-sm font-semibold text-green-500" id="priceChange">+12.34%</span>
                     </div>
                     <div class="h-16 mb-2">
                         <!-- 简单的价格走势图 -->
                         <canvas id="priceChart"></canvas>
                     </div>
-                    <a href="#" class="text-bonk-orange hover:text-bonk-light text-sm flex items-center justify-center py-2 border border-bonk-orange rounded-lg transition-colors">
+                    <a href="#" class="text-bonk-orange hover:text-bonk-light text-sm flex items-center justify-center py-2 border border-bonk-orange rounded-lg transition-colors" id="tokenDetailLink">
                         查看详情
                         <i class="fa fa-arrow-right ml-1"></i>
                     </a>
+                </div>
+            </div>
+            
+            <!-- 代币选择弹窗 -->
+            <div id="tokenSelectModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+                <div class="bg-chat-bg rounded-2xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="tokenSelectModalContent">
+                    <!-- 关闭按钮 -->
+                    <button id="closeTokenSelectModal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                    
+                    <!-- 弹窗头部 -->
+                    <div class="text-center mb-6">
+                        <h2 class="text-xl font-bold text-white mb-2">选择代币</h2>
+                        <p class="text-gray-400">选择要显示的Solana代币</p>
+                    </div>
+                    
+                    <!-- 预设代币列表 -->
+                    <div class="space-y-3 mb-6">
+                        <button class="token-option w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-left transition-colors" data-token="bonk">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-bonk-orange rounded-full flex items-center justify-center">
+                                    <i class="fa fa-dog text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-white">Bonk (BONK)</div>
+                                    <div class="text-xs text-gray-400">Solana Meme Coin</div>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button class="token-option w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-left transition-colors" data-token="sol">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-solana-blue rounded-full flex items-center justify-center">
+                                    <i class="fa fa-coins text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-white">Solana (SOL)</div>
+                                    <div class="text-xs text-gray-400">Solana Native Token</div>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button class="token-option w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-left transition-colors" data-token="jup">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-rocket text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-white">Jupiter (JUP)</div>
+                                    <div class="text-xs text-gray-400">Solana DEX Aggregator</div>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button class="token-option w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-left transition-colors" data-token="custom">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-plus text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-white">自定义代币</div>
+                                    <div class="text-xs text-gray-400">输入代币地址</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <!-- 自定义代币输入 -->
+                    <div id="customTokenInput" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">代币名称</label>
+                            <input type="text" id="customTokenName" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent" placeholder="例如: MyToken">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">代币符号</label>
+                            <input type="text" id="customTokenSymbol" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-2 focus:ring-bonk-orange focus:border-transparent" placeholder="例如: MTK">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">代币地址</label>
+                            <input type="text" id="customTokenAddress" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bonk-orange focus:border-transparent" placeholder="Solana代币地址">
+                        </div>
+                        <button id="saveCustomToken" class="w-full bg-bonk-orange text-white rounded-lg py-2 font-medium hover:bg-bonk-dark transition-colors">
+                            保存自定义代币
+                        </button>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -1725,9 +1816,9 @@
 
             // 监听钱包连接事件
             window.addEventListener('walletConnected', (e) => {
-                connectWalletBtn.classList.add('hidden');
-                walletConnected.classList.remove('hidden');
-                
+            connectWalletBtn.classList.add('hidden');
+            walletConnected.classList.remove('hidden');
+            
                 const address = e.detail.address;
                 const walletType = e.detail.walletType || 'Solana';
                 const shortAddress = address.slice(0,6) + '...' + address.slice(-4);
@@ -1735,7 +1826,7 @@
                 walletConnected.querySelector('p.text-sm').textContent = `${walletType}钱包已连接`;
                 walletConnected.querySelector('p.text-xs').textContent = shortAddress;
                 
-                walletToast.classList.remove('hidden');
+            walletToast.classList.remove('hidden');
                 setTimeout(() => { walletToast.classList.add('hidden'); }, 3000);
                 
                 // 钱包连接成功后，自动进入用户注册流程
@@ -2330,51 +2421,7 @@
                 updateUserStatus('offline');
             });
 
-        // 初始化价格图表
-        const ctx = document.getElementById('priceChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: Array(24).fill(''),
-                datasets: [{
-                    label: 'Bonk Price',
-                    data: [0.000051, 0.000053, 0.000052, 0.000050, 0.000049, 0.000050, 0.000052, 0.000054, 
-                           0.000055, 0.000057, 0.000056, 0.000055, 0.000057, 0.000059, 0.000060, 0.000059,
-                           0.000061, 0.000062, 0.000063, 0.000062, 0.000061, 0.000062, 0.000063, 0.000062],
-                    borderColor: '#FF9500',
-                    backgroundColor: 'rgba(255, 149, 0, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        enabled: false
-                    }
-                },
-                scales: {
-                    x: {
-                        display: false
-                    },
-                    y: {
-                        display: false
-                    }
-                },
-                elements: {
-                    line: {
-                        tension: 0.4
-                    }
-                }
-            }
-        });
+
 
             // 启动应用
             initializeAuth();
@@ -2391,7 +2438,7 @@
             // 确保消息区域在页面加载时滚动到底部
             setTimeout(() => {
                 if (messageArea) {
-                    messageArea.scrollTop = messageArea.scrollHeight;
+            messageArea.scrollTop = messageArea.scrollHeight;
                 }
             }, 100);
             
@@ -2427,6 +2474,396 @@
                     showToast('该功能正在开发中，敬请期待！', 'info');
                 });
             });
+
+            // 代币数据配置
+            const tokenConfigs = {
+                bonk: {
+                    name: 'Bonk',
+                    symbol: 'BONK',
+                    address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+                    color: '#FF9500',
+                    icon: 'fa-dog',
+                    description: 'Solana Meme Coin',
+                    coingeckoId: 'bonk',
+                    price: '$0.00006241',
+                    change: '+12.34%',
+                    changeColor: 'text-green-500',
+                    chartData: [0.000051, 0.000053, 0.000052, 0.000050, 0.000049, 0.000050, 0.000052, 0.000054, 
+                               0.000055, 0.000057, 0.000056, 0.000055, 0.000057, 0.000059, 0.000060, 0.000059,
+                               0.000061, 0.000062, 0.000063, 0.000062, 0.000061, 0.000062, 0.000063, 0.000062]
+                },
+                sol: {
+                    name: 'Solana',
+                    symbol: 'SOL',
+                    address: 'So11111111111111111111111111111111111111112',
+                    color: '#14F195',
+                    icon: 'fa-coins',
+                    description: 'Solana Native Token',
+                    coingeckoId: 'solana',
+                    price: '$98.45',
+                    change: '+5.67%',
+                    changeColor: 'text-green-500',
+                    chartData: [92.1, 93.2, 91.8, 94.1, 95.3, 94.8, 96.2, 97.1, 96.8, 97.5, 98.1, 97.9, 98.3, 98.7, 99.1, 98.9, 99.2, 99.5, 99.8, 99.6, 99.9, 100.2, 100.5, 100.3]
+                },
+                jup: {
+                    name: 'Jupiter',
+                    symbol: 'JUP',
+                    address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+                    color: '#8B5CF6',
+                    icon: 'fa-rocket',
+                    description: 'Solana DEX Aggregator',
+                    coingeckoId: 'jupiter',
+                    price: '$0.89',
+                    change: '-2.15%',
+                    changeColor: 'text-red-500',
+                    chartData: [0.91, 0.90, 0.89, 0.88, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92, 0.91, 0.90, 0.89, 0.88, 0.87, 0.86, 0.85, 0.84, 0.83, 0.82, 0.81, 0.80, 0.79, 0.78]
+                }
+            };
+            
+            // 当前选中的代币
+            let currentToken = 'bonk';
+            let priceChart = null;
+            let priceUpdateInterval = null;
+            
+            // 获取真实价格数据
+            async function fetchTokenPrice(tokenId) {
+                try {
+                    const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_last_updated_at=true`);
+                    const data = await response.json();
+                    
+                    if (data && data[tokenId]) {
+                        const tokenData = data[tokenId];
+                        return {
+                            price: tokenData.usd,
+                            change24h: tokenData.usd_24h_change,
+                            volume24h: tokenData.usd_24h_vol,
+                            lastUpdated: tokenData.last_updated_at
+                        };
+                    }
+                } catch (error) {
+                    console.error('获取价格数据失败:', error);
+                }
+                return null;
+            }
+            
+            // 获取价格历史数据
+            async function fetchTokenPriceHistory(tokenId) {
+                try {
+                    const response = await fetch(`https://api.coingecko.com/api/v3/coins/${tokenId}/market_chart?vs_currency=usd&days=1&interval=hourly`);
+                    const data = await response.json();
+                    
+                    if (data && data.prices) {
+                        return data.prices.map(price => price[1]);
+                    }
+                } catch (error) {
+                    console.error('获取价格历史失败:', error);
+                }
+                return null;
+            }
+            
+            // 更新代币价格显示
+            async function updateTokenPrice(tokenType) {
+                const config = tokenConfigs[tokenType];
+                if (!config || !config.coingeckoId) return;
+                
+                const priceData = await fetchTokenPrice(config.coingeckoId);
+                if (priceData) {
+                    // 更新价格显示
+                    const priceElement = document.getElementById('currentPrice');
+                    const changeElement = document.getElementById('priceChange');
+                    
+                    priceElement.textContent = `$${priceData.price.toFixed(8)}`;
+                    
+                    const changePercent = priceData.change24h;
+                    const changeText = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+                    changeElement.textContent = changeText;
+                    changeElement.className = `text-sm font-semibold ${changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`;
+                    
+                    // 更新配置
+                    config.price = `$${priceData.price.toFixed(8)}`;
+                    config.change = changeText;
+                    config.changeColor = changePercent >= 0 ? 'text-green-500' : 'text-red-500';
+                    
+                    console.log(`${config.name}价格更新:`, priceData);
+                } else {
+                    // API请求失败时显示错误信息
+                    const priceElement = document.getElementById('currentPrice');
+                    const changeElement = document.getElementById('priceChange');
+                    priceElement.textContent = '获取失败';
+                    changeElement.textContent = '--';
+                    changeElement.className = 'text-sm font-semibold text-gray-500';
+                }
+            }
+            
+            // 更新价格图表
+            async function updateTokenChart(tokenType) {
+                const config = tokenConfigs[tokenType];
+                if (!config || !config.coingeckoId) return;
+                
+                const priceHistory = await fetchTokenPriceHistory(config.coingeckoId);
+                if (priceHistory && priceHistory.length > 0) {
+                    // 取最近24个数据点
+                    const recentData = priceHistory.slice(-24);
+                    config.chartData = recentData;
+                    
+                    // 更新图表
+                    if (priceChart) {
+                        priceChart.data.datasets[0].data = recentData;
+                        priceChart.update();
+                    }
+                    
+                    console.log(`${config.name}图表数据更新:`, recentData);
+                }
+            }
+            
+            // 定期更新价格
+            function startPriceUpdates() {
+                // 清除之前的定时器
+                if (priceUpdateInterval) {
+                    clearInterval(priceUpdateInterval);
+                }
+                
+                // 立即更新一次
+                updateTokenPrice(currentToken);
+                updateTokenChart(currentToken);
+                
+                // 每30秒更新一次价格
+                priceUpdateInterval = setInterval(() => {
+                    updateTokenPrice(currentToken);
+                }, 30000);
+                
+                // 每5分钟更新一次图表
+                setInterval(() => {
+                    updateTokenChart(currentToken);
+                }, 300000);
+            }
+            
+            // 停止价格更新
+            function stopPriceUpdates() {
+                if (priceUpdateInterval) {
+                    clearInterval(priceUpdateInterval);
+                    priceUpdateInterval = null;
+                }
+            }
+
+            // 初始化代币切换功能
+            function initializeTokenSwitcher() {
+                // 切换代币按钮
+                document.getElementById('changeTokenBtn').addEventListener('click', () => {
+                    showTokenSelectModal();
+                });
+                
+                // 代币选择弹窗控制
+                document.getElementById('closeTokenSelectModal').addEventListener('click', () => {
+                    hideTokenSelectModal();
+                });
+                
+                document.getElementById('tokenSelectModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'tokenSelectModal') {
+                        hideTokenSelectModal();
+                    }
+                });
+                
+                // 代币选项点击事件
+                document.querySelectorAll('.token-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const tokenType = option.dataset.token;
+                        if (tokenType === 'custom') {
+                            showCustomTokenInput();
+                        } else {
+                            switchToken(tokenType);
+                            hideTokenSelectModal();
+                        }
+                    });
+                });
+                
+                // 保存自定义代币
+                document.getElementById('saveCustomToken').addEventListener('click', () => {
+                    saveCustomToken();
+                });
+
+        // 初始化价格图表
+                initializePriceChart();
+            }
+            
+            // 显示代币选择弹窗
+            function showTokenSelectModal() {
+                const modal = document.getElementById('tokenSelectModal');
+                const content = document.getElementById('tokenSelectModalContent');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    content.classList.remove('scale-95', 'opacity-0');
+                    content.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+            
+            // 隐藏代币选择弹窗
+            function hideTokenSelectModal() {
+                const modal = document.getElementById('tokenSelectModal');
+                const content = document.getElementById('tokenSelectModalContent');
+                content.classList.remove('scale-100', 'opacity-100');
+                content.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    hideCustomTokenInput();
+                }, 300);
+            }
+            
+            // 显示自定义代币输入
+            function showCustomTokenInput() {
+                document.getElementById('customTokenInput').classList.remove('hidden');
+            }
+            
+            // 隐藏自定义代币输入
+            function hideCustomTokenInput() {
+                document.getElementById('customTokenInput').classList.add('hidden');
+                // 清空输入框
+                document.getElementById('customTokenName').value = '';
+                document.getElementById('customTokenSymbol').value = '';
+                document.getElementById('customTokenAddress').value = '';
+            }
+            
+            // 保存自定义代币
+            function saveCustomToken() {
+                const name = document.getElementById('customTokenName').value.trim();
+                const symbol = document.getElementById('customTokenSymbol').value.trim();
+                const address = document.getElementById('customTokenAddress').value.trim();
+                
+                if (!name || !symbol || !address) {
+                    showToast('请填写完整的代币信息', 'error');
+                    return;
+                }
+                
+                // 创建自定义代币配置
+                const customToken = {
+                    name: name,
+                    symbol: symbol,
+                    address: address,
+                    color: '#6B7280',
+                    icon: 'fa-coins',
+                    description: '自定义代币',
+                    price: '$0.00',
+                    change: '0.00%',
+                    changeColor: 'text-gray-500',
+                    chartData: Array(24).fill(0)
+                    // 注意：自定义代币没有coingeckoId，所以不会尝试获取真实价格
+                };
+                
+                // 添加到配置中
+                tokenConfigs.custom = customToken;
+                
+                // 切换到自定义代币
+                switchToken('custom');
+                hideTokenSelectModal();
+                showToast('自定义代币已保存', 'success');
+            }
+            
+            // 切换代币
+            function switchToken(tokenType) {
+                if (!tokenConfigs[tokenType]) return;
+                
+                currentToken = tokenType;
+                const config = tokenConfigs[tokenType];
+                
+                // 更新UI标题
+                document.getElementById('tokenDataTitle').textContent = `${config.name}实时数据`;
+                
+                // 如果是预设代币，获取真实价格
+                if (config.coingeckoId) {
+                    // 显示加载状态
+                    document.getElementById('currentPrice').textContent = '加载中...';
+                    document.getElementById('priceChange').textContent = '--';
+                    
+                    // 获取真实价格和图表数据
+                    updateTokenPrice(tokenType);
+                    updateTokenChart(tokenType);
+                } else {
+                    // 自定义代币使用默认数据
+                    document.getElementById('currentPrice').textContent = config.price;
+                    document.getElementById('priceChange').textContent = config.change;
+                    document.getElementById('priceChange').className = `text-sm font-semibold ${config.changeColor}`;
+                    updatePriceChart(config);
+                }
+                
+                // 重新启动价格更新
+                startPriceUpdates();
+                
+                // 保存到本地存储
+                localStorage.setItem('selectedToken', tokenType);
+                
+                showToast(`已切换到${config.name}`, 'success');
+            }
+            
+            // 初始化价格图表
+            function initializePriceChart() {
+        const ctx = document.getElementById('priceChart').getContext('2d');
+                const config = tokenConfigs[currentToken];
+                
+                priceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(24).fill(''),
+                datasets: [{
+                            label: `${config.name} Price`,
+                            data: config.chartData,
+                            borderColor: config.color,
+                            backgroundColor: `${config.color}20`,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        display: false
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+            }
+            
+            // 更新价格图表
+            function updatePriceChart(config) {
+                if (!priceChart) return;
+                
+                priceChart.data.datasets[0].label = `${config.name} Price`;
+                priceChart.data.datasets[0].data = config.chartData;
+                priceChart.data.datasets[0].borderColor = config.color;
+                priceChart.data.datasets[0].backgroundColor = `${config.color}20`;
+                priceChart.update();
+            }
+            
+            // 启动代币切换功能
+            initializeTokenSwitcher();
+            
+            // 从本地存储恢复选中的代币
+            const savedToken = localStorage.getItem('selectedToken');
+            if (savedToken && tokenConfigs[savedToken]) {
+                switchToken(savedToken);
+            } else {
+                // 默认启动Bonk的价格更新
+                startPriceUpdates();
+            }
         }
 
         // Telegram风格滚动到底部按钮动态定位（修正版，right/bottom）
